@@ -29,7 +29,7 @@ public class Rituals implements ModInitializer {
 		ModEntities.registerModEntities();
 		ModSounds.initialize();
 		// Register the payload type for S2C
-		PayloadTypeRegistry.playS2C().register(
+		PayloadTypeRegistry.clientboundPlay().register(
 				PulseBlasterAmmoPayload.ID,
 				PulseBlasterAmmoPayload.CODEC
 		);

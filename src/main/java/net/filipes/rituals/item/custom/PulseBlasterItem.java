@@ -4,23 +4,39 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.filipes.rituals.entity.custom.PulseBlasterBeamEntity;
 import net.filipes.rituals.network.PulseBlasterAmmoPayload;
 import net.filipes.rituals.sound.ModSounds;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.consume.UseAction;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.dedicated.Settings;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
+
+// Mojang mappings: net.minecraft.component.* → net.minecraft.core.component.*
+// NbtComponent → CustomData, DataComponentTypes → DataComponents
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.component.CustomData;
+
+// NbtCompound → CompoundTag
+import net.minecraft.nbt.CompoundTag;
+
+// ServerPlayerEntity → ServerPlayer
+import net.minecraft.server.level.ServerPlayer;
+
+// sound.SoundEvents/SoundCategory → sounds.SoundEvents/SoundSource
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+
+// World → Level, Hand → InteractionHand, ActionResult → InteractionResult
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.Level;
+
+// entity.player.PlayerEntity → world.entity.player.Player
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+
+// item.Item/ItemStack/Items stay in world.item.*
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+// UseAction → UseAnim
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,71 +50,85 @@ public class PulseBlasterItem extends Item {
 
     private static final Map<UUID, Integer> activeAmmo = new HashMap<>();
 
-    public PulseBlasterItem(Settings settings) {
+    // Item.Settings → Item.Properties
+    public PulseBlasterItem(Properties settings) {
         super(settings);
     }
 
     public static int getAmmo(ItemStack stack) {
-        NbtComponent data = stack.get(DataComponentTypes.CUSTOM_DATA);
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
-        return data.copyNbt().getInt("Ammo").orElse(0);
+        // copyNbt() → copyTag(); getInt() returns plain int in Mojang (0 if absent)
+        return data.copyTag().getInt("Ammo").orElse(0);
     }
 
     public static void setAmmo(ItemStack stack, int ammo) {
-        NbtComponent existing = stack.get(DataComponentTypes.CUSTOM_DATA);
-        NbtCompound   nbt     = existing != null ? existing.copyNbt() : new NbtCompound();
+        CustomData existing = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag nbt = existing != null ? existing.copyTag() : new CompoundTag();
         nbt.putInt("Ammo", ammo);
-        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        // NbtComponent.of() → CustomData.of()
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
     }
 
-    private static void syncAmmo(PlayerEntity player, int ammo) {
-        if (player instanceof ServerPlayerEntity sp) {
+    // PlayerEntity → Player
+    private static void syncAmmo(Player player, int ammo) {
+        // ServerPlayerEntity → ServerPlayer
+        if (player instanceof ServerPlayer sp) {
             ServerPlayNetworking.send(sp, new PulseBlasterAmmoPayload(ammo));
         }
     }
 
-    private static boolean tryReload(PlayerEntity player) {
+    private static boolean tryReload(Player player) {
         if (player.isCreative()) return true;
-        Inventory inv = player.getInventory();
-        for (int i = 0; i < inv.size(); i++) {
-            ItemStack s = inv.getStack(i);
-            if (s.isOf(Items.REDSTONE)) {
-                s.decrement(1);
+        // getInventory() returns net.minecraft.world.entity.player.Inventory (implements Container)
+        var inv = player.getInventory();
+        // inv.size() → inv.getContainerSize()
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            // inv.getStack() → inv.getItem()
+            ItemStack s = inv.getItem(i);
+            // s.isOf() → s.is()
+            if (s.is(Items.REDSTONE)) {
+                // s.decrement() → s.shrink()
+                s.shrink(1);
                 return true;
             }
         }
         return false;
     }
 
+    // getUseAction() → getUseAnimation(); UseAction.BOW → UseAnim.BOW
     @Override
-    public UseAction getUseAction(ItemStack stack) { return UseAction.BOW; }
+    public ItemUseAnimation getUseAnimation(ItemStack stack) { return ItemUseAnimation.BOW; }
 
+    // getMaxUseTime() → getUseDuration()
     @Override
-    public int getMaxUseTime(ItemStack stack, LivingEntity user) { return 72000; }
+    public int getUseDuration(ItemStack stack, LivingEntity user) { return 72000; }
 
+    // World → Level, PlayerEntity → Player, Hand → InteractionHand, ActionResult → InteractionResult
     @Override
-    public ActionResult use(World world, PlayerEntity user, Hand hand) {
-        if (!world.isClient()) {
-            int current = getAmmo(user.getStackInHand(hand));
-            activeAmmo.put(user.getUuid(), current);
+    public InteractionResult use(Level world, Player user, InteractionHand hand) {
+        if (!world.isClientSide()) {              // isClient() → isClientSide()
+            int current = getAmmo(user.getItemInHand(hand));   // getStackInHand() → getItemInHand()
+            activeAmmo.put(user.getUUID(), current);            // getUuid() → getUUID()
             syncAmmo(user, current);
         }
-        user.setCurrentHand(hand);
-        return ActionResult.CONSUME;
+        user.startUsingItem(hand);                // setCurrentHand() → startUsingItem()
+        return InteractionResult.CONSUME;
     }
 
+    // usageTick() → onUseTick()
     @Override
-    public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
-        if (!(user instanceof PlayerEntity player)) return;
-        if (world.isClient()) return;
+    public void onUseTick(Level world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
+        if (!(user instanceof Player player)) return;
+        if (world.isClientSide()) return;
 
-        int ticksHeld       = getMaxUseTime(stack, user) - remainingUseTicks;
+        int ticksHeld = getUseDuration(stack, user) - remainingUseTicks;
         if (ticksHeld < CHARGE_TICKS) return;
 
         int ticksSinceCharged = ticksHeld - CHARGE_TICKS;
         if (ticksSinceCharged % COOLDOWN_TICKS != 0) return;
 
-        UUID id   = player.getUuid();
+        UUID id   = player.getUUID();
         int  ammo = activeAmmo.getOrDefault(id, 0);
 
         if (ammo <= 0) {
@@ -106,13 +136,15 @@ public class PulseBlasterItem extends Item {
                 ammo = MAX_AMMO;
                 world.playSound(null,
                         user.getX(), user.getY(), user.getZ(),
-                        SoundEvents.ITEM_LODESTONE_COMPASS_LOCK,
-                        SoundCategory.PLAYERS, 0.6f, 1.2f);
+                        // ITEM_LODESTONE_COMPASS_LOCK → LODESTONE_COMPASS_LOCK (no ITEM_ prefix)
+                        SoundEvents.LODESTONE_COMPASS_LOCK,
+                        SoundSource.PLAYERS, 0.6f, 1.2f);      // SoundCategory → SoundSource
             } else {
                 world.playSound(null,
                         user.getX(), user.getY(), user.getZ(),
-                        SoundEvents.BLOCK_DISPENSER_FAIL,
-                        SoundCategory.PLAYERS, 0.5f, 1.0f);
+                        // BLOCK_DISPENSER_FAIL → DISPENSER_FAIL (no BLOCK_ prefix)
+                        SoundEvents.DISPENSER_FAIL,
+                        SoundSource.PLAYERS, 0.5f, 1.0f);
 
                 setAmmo(stack, 0);
                 activeAmmo.remove(id);
@@ -121,24 +153,26 @@ public class PulseBlasterItem extends Item {
                 return;
             }
         }
-        world.spawnEntity(new PulseBlasterBeamEntity(world, user));
+        // world.spawnEntity() → world.addFreshEntity()
+        world.addFreshEntity(new PulseBlasterBeamEntity(world, user));
         world.playSound(null,
                 user.getX(), user.getY(), user.getZ(),
                 ModSounds.PULSE_BLASTER_SHOT,
-                SoundCategory.PLAYERS, 0.5f, 1.0f);
+                SoundSource.PLAYERS, 0.5f, 1.0f);
         int newAmmo = ammo - 1;
         activeAmmo.put(id, newAmmo);
         syncAmmo(player, newAmmo);
     }
 
+    // onStoppedUsing() → releaseUsing()
     @Override
-    public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
-        if (!world.isClient()) {
-            UUID id = user.getUuid();
+    public boolean releaseUsing(ItemStack stack, Level world, LivingEntity user, int remainingUseTicks) {
+        if (!world.isClientSide()) {
+            UUID id = user.getUUID();
             if (activeAmmo.containsKey(id)) {
                 int finalAmmo = activeAmmo.remove(id);
                 setAmmo(stack, finalAmmo);
-                if (user instanceof PlayerEntity player) {
+                if (user instanceof Player player) {
                     syncAmmo(player, -1);
                 }
             }

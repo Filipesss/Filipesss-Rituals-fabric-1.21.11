@@ -3,16 +3,32 @@ package net.filipes.rituals.item.custom;
 import net.filipes.rituals.effect.ModStatusEffects;
 import net.filipes.rituals.sound.ModSounds;
 import net.filipes.rituals.util.RitualsTooltipStyle;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ToolMaterial;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.text.Text;
-import net.minecraft.world.World;
+
+// LivingEntity stays but moves to world.entity
+import net.minecraft.world.entity.LivingEntity;
+
+// StatusEffectInstance → MobEffectInstance, StatusEffect → MobEffect
+import net.minecraft.world.effect.MobEffectInstance;
+
+// Item, ItemStack stay in world.item
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ToolMaterial;
+
+// ParticleTypes stays in core.particles
+import net.minecraft.core.particles.ParticleTypes;
+
+// ServerWorld → ServerLevel
+import net.minecraft.server.level.ServerLevel;
+
+// SoundCategory → SoundSource
+import net.minecraft.sounds.SoundSource;
+
+// World → Level
+import net.minecraft.world.level.Level;
+
+// Text → Component
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,67 +39,72 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
     private static final double CHAIN_RADIUS = 8.0;
     private static final float CHAIN_DAMAGE = 3.0f;
 
-    public LightningRapierItem(ToolMaterial material, float attackDamage, float attackSpeed, Settings settings) {
+    public LightningRapierItem(ToolMaterial material, float attackDamage, float attackSpeed, Properties settings) {
         super(settings.sword(material, attackDamage, attackSpeed));
     }
 
+    // postHit() → hurtEnemy()
     @Override
-    public void postHit(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+    public void hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         applyStun(target);
 
-        World world = target.getEntityWorld();
-        if (!world.isClient()) {
-            ServerWorld serverWorld = (ServerWorld) world;
+        // getEntityWorld() → level()
+        Level world = target.level();
+        if (!world.isClientSide()) {
+            ServerLevel serverWorld = (ServerLevel) world;
 
-            List<LivingEntity> nearby = world.getEntitiesByClass(
+            // getEntitiesByClass() → getEntitiesOfClass()
+            // getBoundingBox() → getBoundingBox() (unchanged)
+            // expand() → inflate()
+            List<LivingEntity> nearby = world.getEntitiesOfClass(
                     LivingEntity.class,
-                    target.getBoundingBox().expand(CHAIN_RADIUS),
+                    target.getBoundingBox().inflate(CHAIN_RADIUS),
                     entity -> entity != target && entity != attacker && entity.isAlive()
             );
 
+            // squaredDistanceTo() → distanceToSqr()
             nearby.sort((a, b) -> Double.compare(
-                    a.squaredDistanceTo(target),
-                    b.squaredDistanceTo(target)
+                    a.distanceToSqr(target),
+                    b.distanceToSqr(target)
             ));
 
             if (nearby.isEmpty()) {
-                // No chain — play attack2
                 world.playSound(null,
                         target.getX(), target.getY(), target.getZ(),
                         ModSounds.LIGHTNING_RAPIER_ATTACK2,
-                        SoundCategory.PLAYERS, 1.0f, 1.0f);
+                        SoundSource.PLAYERS, 1.0f, 1.0f);
             } else {
-                // Chain triggered — play attack1
                 world.playSound(null,
                         target.getX(), target.getY(), target.getZ(),
                         ModSounds.LIGHTNING_RAPIER_ATTACK1,
-                        SoundCategory.PLAYERS, 1.0f, 1.0f);
+                        SoundSource.PLAYERS, 1.0f, 1.0f);
 
                 LivingEntity previous = target;
                 for (LivingEntity chained : nearby) {
                     spawnLightningChain(serverWorld, previous, chained);
                     applyStun(chained);
-                    chained.damage(serverWorld, serverWorld.getDamageSources().lightningBolt(), CHAIN_DAMAGE);
+                    // damage() → hurt(); getDamageSources() → damageSources()
+                    chained.hurt(serverWorld.damageSources().lightningBolt(), CHAIN_DAMAGE);
                     previous = chained;
                 }
             }
         }
 
-        super.postHit(stack, target, attacker);
+        super.hurtEnemy(stack, target, attacker);
     }
 
-    private void spawnLightningChain(ServerWorld world, LivingEntity from, LivingEntity to) {
-        double x1 = from.getX(), y1 = from.getBodyY(0.5), z1 = from.getZ();
-        double x2 = to.getX(),   y2 = to.getBodyY(0.5),   z2 = to.getZ();
+    private void spawnLightningChain(ServerLevel world, LivingEntity from, LivingEntity to) {
+        double x1 = from.getX(), y1 = from.getY(0.5), z1 = from.getZ();   // getBodyY() → getY(fraction)
+        double x2 = to.getX(),   y2 = to.getY(0.5),   z2 = to.getZ();
 
         List<double[]> points = new ArrayList<>();
         points.add(new double[]{x1, y1, z1});
         points.add(new double[]{x2, y2, z2});
 
-        int subdivisions = 7;       // was 5 — more waypoints
+        int subdivisions = 7;
         for (int s = 0; s < subdivisions; s++) {
             List<double[]> next = new ArrayList<>();
-            double displacement = 4.0 / (s + 1); // was 0.9 — much wilder initial bends
+            double displacement = 4.0 / (s + 1);
             for (int i = 0; i < points.size() - 1; i++) {
                 double[] a = points.get(i);
                 double[] b = points.get(i + 1);
@@ -105,7 +126,7 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
         }
     }
 
-    private void drawSegment(ServerWorld world, double x1, double y1, double z1,
+    private void drawSegment(ServerLevel world, double x1, double y1, double z1,
                              double x2, double y2, double z2) {
         double dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
         double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -117,14 +138,15 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
             double y = y1 + dy * t;
             double z = z1 + dz * t;
 
-            // Single bright core, no extra spread
-            world.spawnParticles(ParticleTypes.END_ROD, x, y, z, 1, 0, 0, 0, 0.0);
-            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 1, 0, 0, 0, 0.0);
+            // spawnParticles() stays the same on ServerLevel
+            world.sendParticles(ParticleTypes.END_ROD, x, y, z, 1, 0, 0, 0, 0.0);
+            world.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 1, 0, 0, 0, 0.0);
         }
     }
 
     private void applyStun(LivingEntity entity) {
-        entity.addStatusEffect(new StatusEffectInstance(
+        // addStatusEffect() → addEffect(); StatusEffectInstance → MobEffectInstance
+        entity.addEffect(new MobEffectInstance(
                 ModStatusEffects.STUN,
                 STUN_DURATION_TICKS,
                 0,
@@ -134,12 +156,11 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
         ));
     }
 
-
-
+    // getName() → getDescription(); Text → Component; Text.translatable() → Component.translatable()
     @Override
-    public Text getName(ItemStack stack) {
-        return Text.translatable(getTranslationKey())
-                .styled(s -> s.withColor(getNameColor()).withItalic(false));
+    public Component getName(ItemStack stack) {
+        return Component.translatable(getDescriptionId())
+                .withStyle(s -> s.withColor(getNameColor()).withItalic(false));
     }
 
     @Override public int getNameColor()              { return 0xFF9B6DFF; }

@@ -2,24 +2,31 @@ package net.filipes.rituals.entity;
 
 import net.filipes.rituals.Rituals;
 import net.filipes.rituals.entity.custom.PulseBlasterBeamEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 
 public class ModEntities {
 
     public static final EntityType<PulseBlasterBeamEntity> PULSE_BLASTER_BEAM = Registry.register(
-            Registries.ENTITY_TYPE,
-            Identifier.of(Rituals.MOD_ID, "pulse_blaster_beam"),
-            EntityType.Builder.<PulseBlasterBeamEntity>create(PulseBlasterBeamEntity::new, SpawnGroup.MISC)
-                    .dimensions(0.25f, 0.25f)   // hitbox size: small bolt
-                    .maxTrackingRange(64)
-                    .trackingTickInterval(1)     // update position every tick for smooth movement
-                    .build(RegistryKey.of(RegistryKeys.ENTITY_TYPE, Identifier.of(Rituals.MOD_ID, "pulse_blaster_beam")))
+            BuiltInRegistries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "pulse_blaster_beam"),
+            EntityType.Builder.<PulseBlasterBeamEntity>of(
+                            (type, level) -> new PulseBlasterBeamEntity(
+                                    (EntityType<? extends PulseBlasterBeamEntity>) type, level),
+                            MobCategory.MISC
+                    )
+                    .sized(0.25f, 0.25f)
+                    .clientTrackingRange(64)
+                    .updateInterval(1)
+                    .build(ResourceKey.create(
+                            Registries.ENTITY_TYPE,
+                            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "pulse_blaster_beam")
+                    ))
     );
 
     public static void registerModEntities() {

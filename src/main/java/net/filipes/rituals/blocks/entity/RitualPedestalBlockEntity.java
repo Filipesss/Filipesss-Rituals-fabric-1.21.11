@@ -1,28 +1,29 @@
 package net.filipes.rituals.blocks.entity;
 
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.decoration.DisplayEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.Inventories;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.particle.ItemStackParticleEffect;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.storage.ReadView;
-import net.minecraft.storage.WriteView;
-import net.minecraft.text.Text;
-import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -30,122 +31,108 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
-public class RitualPedestalBlockEntity extends BlockEntity implements Inventory {
-    private final DefaultedList<ItemStack> items = DefaultedList.ofSize(32, ItemStack.EMPTY);
+public class RitualPedestalBlockEntity extends BlockEntity implements Container {
 
-    @Nullable
-    private UUID displayEntityUuid = null;
+    private final NonNullList<ItemStack> items = NonNullList.withSize(32, ItemStack.EMPTY);
 
-    // NEW: multiple floating items
-    private final List<UUID> floatingItemUuids = new ArrayList<>();
-    private final List<String> floatingItemIds = new ArrayList<>();
+    @Nullable private UUID displayEntityUuid = null;
 
-    // Config: maximum number of distinct floating items to show
-    private static final int MAX_FLOATING = 6;
+    private final List<UUID>   floatingItemUuids = new ArrayList<>();
+    private final List<String> floatingItemIds   = new ArrayList<>();
 
-    private static final boolean ENABLE_PARTICLES = true;
-
-    // removed item particles
-    private static final int END_ROD_PARTICLE_COUNT = 1; // keep low
-    private static final double END_ROD_OFFSET = 0.02;
+    private static final int     MAX_FLOATING        = 6;
+    private static final boolean ENABLE_PARTICLES    = true;
+    private static final int     END_ROD_PARTICLE_COUNT = 1;
+    private static final double  END_ROD_OFFSET      = 0.02;
 
     public RitualPedestalBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_PEDESTAL_BE, pos, state);
     }
 
-    public void tick(World world) {
-        if (!(world instanceof ServerWorld serverWorld)) return;
+    // -------------------------------------------------------------------------
+    // Tick
+    // -------------------------------------------------------------------------
 
-        // --- Manage text display entity (unchanged behaviour) ---
+    public void tick(Level world) {
+        if (!(world instanceof ServerLevel serverLevel)) return;
+
+        // --- Manage text display entity ---
         if (displayEntityUuid != null) {
-            Entity existing = serverWorld.getEntity(displayEntityUuid);
-            if (existing != null && !existing.isRemoved()) {
-                // nothing — updates happen via markDirty() -> updateDisplayText()
-            } else {
-                displayEntityUuid = null;
-            }
+            Entity existing = serverLevel.getEntity(displayEntityUuid);
+            if (existing == null || existing.isRemoved()) displayEntityUuid = null;
         }
 
         if (displayEntityUuid == null) {
-            DisplayEntity.TextDisplayEntity display = new DisplayEntity.TextDisplayEntity(
-                    EntityType.TEXT_DISPLAY, serverWorld
+            Display.TextDisplay display = new Display.TextDisplay(EntityType.TEXT_DISPLAY, serverLevel);
+            // Display entity setup
+            display.setPos(
+                    worldPosition.getX() + 0.5,
+                    worldPosition.getY() + 1.8,
+                    worldPosition.getZ() + 0.5
             );
-
-            display.setPosition(
-                    pos.getX() + 0.5,
-                    pos.getY() + 1.8,
-                    pos.getZ() + 0.5
-            );
-
-            display.setBillboardMode(DisplayEntity.BillboardMode.CENTER);
+            display.setBillboardConstraints(Display.BillboardConstraints.CENTER);
             display.setNoGravity(true);
             display.setInvulnerable(true);
             display.setSilent(true);
             display.setText(buildDisplayText());
-
-            serverWorld.spawnEntity(display);
-            displayEntityUuid = display.getUuid();
+            serverLevel.addFreshEntity(display);
+            displayEntityUuid = display.getUUID();
         }
 
-        // --- Compute distinct item types in the inventory (preserve insertion order) ---
+        // --- Distinct item types (insertion order, capped at MAX_FLOATING) ---
         LinkedHashMap<String, ItemStack> exemplarMap = new LinkedHashMap<>();
         for (ItemStack stack : items) {
             if (!stack.isEmpty()) {
-                String id = Registries.ITEM.getId(stack.getItem()).toString();
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 if (!exemplarMap.containsKey(id)) {
                     ItemStack ex = stack.copy();
                     ex.setCount(1);
                     exemplarMap.put(id, ex);
                 }
-                if (exemplarMap.size() >= MAX_FLOATING) break; // limit processed types
+                if (exemplarMap.size() >= MAX_FLOATING) break;
             }
         }
 
-        // If no items -> remove all floats and return
         if (exemplarMap.isEmpty()) {
-            killAllFloatingItems(serverWorld);
+            killAllFloatingItems(serverLevel);
             return;
         }
 
-        // Desired number of floating items
         int desired = exemplarMap.size();
 
-        // --- Ensure floating lists are same size as desired: remove extras ---
+        // Remove extra floating slots
         while (floatingItemUuids.size() > desired) {
             int idx = floatingItemUuids.size() - 1;
             UUID u = floatingItemUuids.remove(idx);
             floatingItemIds.remove(idx);
-            Entity e = serverWorld.getEntity(u);
+            Entity e = serverLevel.getEntity(u);
             if (e != null) e.discard();
         }
 
-        // Build an ordered list of ids and exemplars
-        List<String> desiredIds = new ArrayList<>(exemplarMap.keySet());
+        List<String>    desiredIds      = new ArrayList<>(exemplarMap.keySet());
         List<ItemStack> desiredExemplars = new ArrayList<>(exemplarMap.values());
 
-        // --- For each desired floating item slot, validate existing or spawn a new one ---
         for (int i = 0; i < desired; i++) {
-            String wantId = desiredIds.get(i);
+            String    wantId   = desiredIds.get(i);
             ItemStack exemplar = desiredExemplars.get(i);
 
             if (i < floatingItemUuids.size()) {
-                UUID uuid = floatingItemUuids.get(i);
-                Entity existing = serverWorld.getEntity(uuid);
-                if (existing != null && !existing.isRemoved() && existing instanceof ItemEntity itemEnt) {
-                    String existingId = Registries.ITEM.getId(itemEnt.getStack().getItem()).toString();
+                UUID   uuid     = floatingItemUuids.get(i);
+                Entity existing = serverLevel.getEntity(uuid);
+                if (existing instanceof ItemEntity itemEnt && !existing.isRemoved()) {
+                    String existingId = BuiltInRegistries.ITEM
+                            .getKey(itemEnt.getItem().getItem()).toString();
                     if (!existingId.equals(wantId)) {
                         itemEnt.discard();
                         floatingItemUuids.set(i, null);
                         floatingItemIds.set(i, null);
                     } else {
-                        // orbit + particles
-                        orbitItemEntity(serverWorld, itemEnt, i, desired);
-                        // ensure properties & stack
+                        orbitItemEntity(serverLevel, itemEnt, i, desired);
                         itemEnt.setNoGravity(true);
                         itemEnt.setInvulnerable(true);
-                        itemEnt.setPickupDelayInfinite();
+                        itemEnt.setNeverPickUp();
                         itemEnt.setSilent(true);
-                        itemEnt.setStack(exemplar.copy());
+                        itemEnt.setItem(exemplar.copy());
                         continue;
                     }
                 } else {
@@ -154,281 +141,264 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Inventory 
                 }
             }
 
-            // spawn a new item entity at this slot index
-            ItemEntity floating = new ItemEntity(serverWorld,
-                    pos.getX() + 0.5,
-                    pos.getY() + 1.2,
-                    pos.getZ() + 0.5,
+            // Spawn a new floating item
+            ItemEntity floating = new ItemEntity(serverLevel,
+                    worldPosition.getX() + 0.5,
+                    worldPosition.getY() + 1.2,
+                    worldPosition.getZ() + 0.5,
                     exemplar.copy()
             );
             floating.setNoGravity(true);
             floating.setInvulnerable(true);
-            floating.setPickupDelayInfinite();
+            floating.setNeverPickUp();
             floating.setSilent(true);
-            floating.setVelocity(0.0, 0.0, 0.0);
-
-            serverWorld.spawnEntity(floating);
+            floating.setDeltaMovement(0.0, 0.0, 0.0);
+            serverLevel.addFreshEntity(floating);
 
             if (i < floatingItemUuids.size()) {
-                floatingItemUuids.set(i, floating.getUuid());
+                floatingItemUuids.set(i, floating.getUUID());
                 floatingItemIds.set(i, wantId);
             } else {
-                floatingItemUuids.add(floating.getUuid());
+                floatingItemUuids.add(floating.getUUID());
                 floatingItemIds.add(wantId);
             }
 
-            // immediately orbit/position it so there's no pop-in
-            orbitItemEntity(serverWorld, floating, i, desired);
+            orbitItemEntity(serverLevel, floating, i, desired);
         }
     }
 
-    /**
-     * Orbit an ItemEntity around the pedestal with index-based offset so multiple items
-     * are spread evenly around a circle and bob up/down. Also spawns small particles.
-     */
-    private void orbitItemEntity(ServerWorld serverWorld, ItemEntity itemEnt, int index, int total) {
-        long time = serverWorld.getTime();
-        double baseSpeed = 0.06; // tweak for rotation speed
-        double angleProgress = time * baseSpeed;
-        double spacing = (Math.PI * 2.0) / Math.max(1, total);
-        double angle = angleProgress + index * spacing;
-        double radius = 0.6 + Math.min(0.35, total * 0.05); // slight radius increase with more items
-        double cx = pos.getX() + 0.5 + Math.cos(angle) * radius;
-        double cz = pos.getZ() + 0.5 + Math.sin(angle) * radius;
-        double cy = pos.getY() + 1.15 + Math.sin(angle * 2.0 + index) * 0.12;
+    private void orbitItemEntity(ServerLevel serverLevel, ItemEntity itemEnt, int index, int total) {
+        long   time          = serverLevel.getGameTime();
+        double angleProgress = time * 0.06;
+        double spacing       = (Math.PI * 2.0) / Math.max(1, total);
+        double angle         = angleProgress + index * spacing;
+        double radius        = 0.6 + Math.min(0.35, total * 0.05);
+        double cx = worldPosition.getX() + 0.5 + Math.cos(angle) * radius;
+        double cz = worldPosition.getZ() + 0.5 + Math.sin(angle) * radius;
+        double cy = worldPosition.getY() + 1.15 + Math.sin(angle * 2.0 + index) * 0.12;
 
-        // update server-side position and yaw so clients render smoothly
-        itemEnt.refreshPositionAndAngles(cx, cy, cz, (float) Math.toDegrees(angle), 0f);
+        itemEnt.setPos(cx, cy, cz);
 
-        // --- Particles (server -> client packets) ---
         if (ENABLE_PARTICLES) {
-            // subtle magic glow only
-            serverWorld.spawnParticles(
+            serverLevel.sendParticles(
                     ParticleTypes.END_ROD,
-                    cx,
-                    cy + 0.1,
-                    cz,
+                    cx, cy + 0.1, cz,
                     END_ROD_PARTICLE_COUNT,
-                    END_ROD_OFFSET,
-                    END_ROD_OFFSET,
-                    END_ROD_OFFSET,
+                    END_ROD_OFFSET, END_ROD_OFFSET, END_ROD_OFFSET,
                     0.005
             );
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
+
     @Override
-    public void markRemoved() {
-        super.markRemoved();
+    public void setRemoved() {
+        super.setRemoved();
         killDisplayEntity();
-        if (world instanceof ServerWorld serverWorld) killAllFloatingItems(serverWorld);
+        if (level instanceof ServerLevel serverLevel) killAllFloatingItems(serverLevel);
     }
 
     private void killDisplayEntity() {
-        if (world instanceof ServerWorld serverWorld && displayEntityUuid != null) {
-            Entity entity = serverWorld.getEntity(displayEntityUuid);
+        if (level instanceof ServerLevel serverLevel && displayEntityUuid != null) {
+            Entity entity = serverLevel.getEntity(displayEntityUuid);
             if (entity != null) entity.discard();
             displayEntityUuid = null;
         }
     }
 
-    private void killAllFloatingItems(ServerWorld serverWorld) {
+    private void killAllFloatingItems(ServerLevel serverLevel) {
         for (UUID u : floatingItemUuids) {
             if (u == null) continue;
-            Entity e = serverWorld.getEntity(u);
+            Entity e = serverLevel.getEntity(u);
             if (e != null) e.discard();
         }
         floatingItemUuids.clear();
         floatingItemIds.clear();
     }
 
-    private Text buildDisplayText() {
-        java.util.Map<String, Integer> countMap = new java.util.LinkedHashMap<>();
-        java.util.Map<String, Text> nameMap = new java.util.LinkedHashMap<>();
+    // -------------------------------------------------------------------------
+    // Display text
+    // -------------------------------------------------------------------------
+
+    private Component buildDisplayText() {
+        LinkedHashMap<String, Integer>   countMap = new LinkedHashMap<>();
+        LinkedHashMap<String, Component> nameMap  = new LinkedHashMap<>();
 
         for (ItemStack stack : items) {
             if (!stack.isEmpty()) {
-                String id = Registries.ITEM.getId(stack.getItem()).toString();
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 countMap.merge(id, stack.getCount(), Integer::sum);
-                nameMap.putIfAbsent(id, stack.getName().copy());
+                nameMap.putIfAbsent(id, stack.getHoverName().copy());
             }
         }
 
-        if (countMap.isEmpty()) return Text.literal("(empty)");
+        if (countMap.isEmpty()) return Component.literal("(empty)");
 
-        StringBuilder sb = new StringBuilder();
-        boolean first = true;
+        StringBuilder sb    = new StringBuilder();
+        boolean       first = true;
         for (String id : countMap.keySet()) {
             if (!first) sb.append("\n");
             first = false;
-            Text name = nameMap.get(id);
-            sb.append(name.getString());
+            sb.append(nameMap.get(id).getString());
             int total = countMap.get(id);
             if (total > 1) sb.append(" x").append(total);
         }
-
-        return Text.literal(sb.toString());
+        return Component.literal(sb.toString());
     }
 
     private void updateDisplayText() {
-        if (!(world instanceof ServerWorld serverWorld)) return;
-        if (displayEntityUuid == null) return;
-        Entity entity = serverWorld.getEntity(displayEntityUuid);
-        if (entity instanceof DisplayEntity.TextDisplayEntity display) {
-            display.setText(buildDisplayText());
-        }
+        if (!(level instanceof ServerLevel serverLevel) || displayEntityUuid == null) return;
+        Entity entity = serverLevel.getEntity(displayEntityUuid);
+        if (entity instanceof Display.TextDisplay display) display.setText(buildDisplayText());
     }
 
-    @Override public int size() { return items.size(); }
+    // -------------------------------------------------------------------------
+    // Container interface
+    // -------------------------------------------------------------------------
+
+    @Override public int  getContainerSize() { return items.size(); }
 
     @Override
     public boolean isEmpty() {
-        for (ItemStack stack : items) if (!stack.isEmpty()) return false;
+        for (ItemStack s : items) if (!s.isEmpty()) return false;
         return true;
     }
 
-    @Override public ItemStack getStack(int slot) { return items.get(slot); }
+    @Override public ItemStack getItem(int slot) { return items.get(slot); }
 
     @Override
-    public ItemStack removeStack(int slot, int amount) {
-        ItemStack removed = Inventories.splitStack(items, slot, amount);
-        if (!removed.isEmpty()) markDirty();
+    public ItemStack removeItem(int slot, int amount) {
+        ItemStack removed = ContainerHelper.removeItem(items, slot, amount);
+        if (!removed.isEmpty()) setChanged();
         return removed;
     }
 
     @Override
-    public ItemStack removeStack(int slot) {
-        ItemStack removed = Inventories.removeStack(items, slot);
-        if (!removed.isEmpty()) markDirty();
-        return removed;
+    public ItemStack removeItemNoUpdate(int slot) {
+        return ContainerHelper.takeItem(items, slot);
     }
 
     @Override
-    public void setStack(int slot, ItemStack stack) {
+    public void setItem(int slot, ItemStack stack) {
         items.set(slot, stack);
-        if (stack.getCount() > getMaxCountPerStack()) stack.setCount(getMaxCountPerStack());
-        markDirty();
+        if (stack.getCount() > getMaxStackSize()) stack.setCount(getMaxStackSize());
+        setChanged();
     }
 
     @Override
-    public boolean canPlayerUse(PlayerEntity player) {
-        if (world == null) return false;
-        return player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 64.0;
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
     }
 
-    @Override
-    public void clear() { items.clear(); markDirty(); }
+    @Override public void clearContent() { items.clear(); setChanged(); }
+
+    // -------------------------------------------------------------------------
+    // Serialization
+    // -------------------------------------------------------------------------
 
     @Override
-    protected void writeData(WriteView view) {
-        Inventories.writeData(view, items);
-        if (displayEntityUuid != null) {
-            view.putString("DisplayEntityUUID", displayEntityUuid.toString());
-        }
-        // write multiple floating UUIDs and IDs as comma-separated strings (empty -> "")
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        ContainerHelper.saveAllItems(output, items, true);
+
+        if (displayEntityUuid != null)
+            output.putString("DisplayEntityUUID", displayEntityUuid.toString());
+
         if (!floatingItemUuids.isEmpty()) {
-            StringBuilder uuids = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < floatingItemUuids.size(); i++) {
-                if (i != 0) uuids.append(",");
-                uuids.append(floatingItemUuids.get(i));
+                if (i != 0) sb.append(",");
+                sb.append(floatingItemUuids.get(i));
             }
-            view.putString("FloatingItemUUIDs", uuids.toString());
+            output.putString("FloatingItemUUIDs", sb.toString());
         }
         if (!floatingItemIds.isEmpty()) {
-            StringBuilder ids = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < floatingItemIds.size(); i++) {
-                if (i != 0) ids.append(",");
-                ids.append(floatingItemIds.get(i));
+                if (i != 0) sb.append(",");
+                sb.append(floatingItemIds.get(i));
             }
-            view.putString("FloatingItemIds", ids.toString());
+            output.putString("FloatingItemIds", sb.toString());
         }
     }
 
     @Override
-    protected void readData(ReadView view) {
-        Inventories.readData(view, items);
-        String raw = view.getString("DisplayEntityUUID", "");
-        if (raw != null && !raw.isEmpty()) {
-            this.displayEntityUuid = UUID.fromString(raw);
-        }
-        String rawUuids = view.getString("FloatingItemUUIDs", "");
-        String rawIds = view.getString("FloatingItemIds", "");
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        ContainerHelper.loadAllItems(input, items);
+
+        String raw = input.getStringOr("DisplayEntityUUID", "");
+        if (!raw.isEmpty()) this.displayEntityUuid = UUID.fromString(raw);
+
         floatingItemUuids.clear();
         floatingItemIds.clear();
-        if (rawUuids != null && !rawUuids.isEmpty()) {
-            String[] parts = rawUuids.split(",");
-            for (String s : parts) {
-                if (s == null || s.isEmpty()) continue;
-                try {
-                    floatingItemUuids.add(UUID.fromString(s));
-                } catch (IllegalArgumentException ignored) {}
+
+        String rawUuids = input.getStringOr("FloatingItemUUIDs", "");
+        if (!rawUuids.isEmpty()) {
+            for (String s : rawUuids.split(",")) {
+                if (s.isEmpty()) continue;
+                try { floatingItemUuids.add(UUID.fromString(s)); }
+                catch (IllegalArgumentException ignored) {}
             }
         }
-        if (rawIds != null && !rawIds.isEmpty()) {
-            String[] parts = rawIds.split(",");
-            for (String s : parts) {
-                if (s == null) continue;
-                floatingItemIds.add(s);
-            }
+        String rawIds = input.getStringOr("FloatingItemIds", "");
+        if (!rawIds.isEmpty()) {
+            for (String s : rawIds.split(",")) floatingItemIds.add(s);
         }
     }
 
     @Nullable
     @Override
-    public BlockEntityUpdateS2CPacket toUpdatePacket() {
-        return BlockEntityUpdateS2CPacket.create(this);
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     @Override
-    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-        return createNbt(registries);
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
     }
 
     @Override
-    public void markDirty() {
-        super.markDirty();
+    public void setChanged() {
+        super.setChanged();
         updateDisplayText();
-        // On inventory change, floating items will be re-evaluated/respawned in tick().
-        if (world != null && !world.isClient()) {
-            BlockState state = world.getBlockState(pos);
-            world.updateListeners(pos, state, state, 3);
+        if (level != null && !level.isClientSide()) {
+            BlockState state = level.getBlockState(worldPosition);
+            level.sendBlockUpdated(worldPosition, state, state, 3);
         }
     }
 
-    // inside RitualPedestalBlockEntity
+    // -------------------------------------------------------------------------
+    // Public helpers
+    // -------------------------------------------------------------------------
+
     public ItemStack insertStack(ItemStack stack) {
         if (stack.isEmpty()) return ItemStack.EMPTY;
-
         ItemStack toInsert = stack.copy();
 
-        // --- 1) Merge into existing matching stacks ---
         for (int i = 0; i < items.size() && !toInsert.isEmpty(); i++) {
             ItemStack slot = items.get(i);
-            if (!slot.isEmpty() && ItemStack.areItemsEqual(slot, toInsert)) {
-                int slotMax = Math.min(getMaxCountPerStack(), slot.getMaxCount());
-                int space = slotMax - slot.getCount();
+            if (!slot.isEmpty() && ItemStack.isSameItemSameComponents(slot, toInsert)) {
+                int space = Math.min(getMaxStackSize(), slot.getMaxStackSize()) - slot.getCount();
                 if (space > 0) {
                     int put = Math.min(space, toInsert.getCount());
-                    slot.increment(put);                 // add into existing slot
-                    toInsert.decrement(put);             // reduce what's left to insert
+                    slot.grow(put);
+                    toInsert.shrink(put);
                     items.set(i, slot);
                 }
             }
         }
-
-        // --- 2) Fill empty slots ---
         for (int i = 0; i < items.size() && !toInsert.isEmpty(); i++) {
             if (items.get(i).isEmpty()) {
-                int put = Math.min(toInsert.getCount(), getMaxCountPerStack());
-                // split(put) returns a new ItemStack with 'put' items and reduces toInsert
-                items.set(i, toInsert.split(put));
+                items.set(i, toInsert.split(Math.min(toInsert.getCount(), getMaxStackSize())));
             }
         }
 
-        // mark dirty only if something changed
-        if (toInsert.getCount() != stack.getCount()) markDirty();
-
-        return toInsert; // leftover
+        if (toInsert.getCount() != stack.getCount()) setChanged();
+        return toInsert;
     }
 
     public ItemStack removeFirstNonEmpty() {
@@ -436,7 +406,7 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Inventory 
             if (!items.get(i).isEmpty()) {
                 ItemStack copy = items.get(i).copy();
                 items.set(i, ItemStack.EMPTY);
-                markDirty();
+                setChanged();
                 return copy;
             }
         }
@@ -444,30 +414,25 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Inventory 
     }
 
     public List<ItemStack> removeAllOfFirstType() {
-        // Find the first non-empty item type
         String targetId = null;
         for (ItemStack stack : items) {
             if (!stack.isEmpty()) {
-                targetId = Registries.ITEM.getId(stack.getItem()).toString();
+                targetId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 break;
             }
         }
         if (targetId == null) return List.of();
 
-        // Collect and remove all stacks matching that type
-        List<ItemStack> removed = new java.util.ArrayList<>();
+        List<ItemStack> removed = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (!stack.isEmpty()) {
-                String id = Registries.ITEM.getId(stack.getItem()).toString();
-                if (id.equals(targetId)) {
-                    removed.add(stack.copy());
-                    items.set(i, ItemStack.EMPTY);
-                }
+            if (!stack.isEmpty() &&
+                    BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(targetId)) {
+                removed.add(stack.copy());
+                items.set(i, ItemStack.EMPTY);
             }
         }
-
-        if (!removed.isEmpty()) markDirty();
+        if (!removed.isEmpty()) setChanged();
         return removed;
     }
 }

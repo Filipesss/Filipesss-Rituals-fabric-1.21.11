@@ -1,21 +1,23 @@
 package net.filipes.rituals.effect;
 
 import net.filipes.rituals.Rituals;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffect; // StatusEffect -> MobEffect
 
 public class ModStatusEffects {
 
-    public static final RegistryEntry<StatusEffect> STUN = Registry.registerReference(
-            Registries.STATUS_EFFECT,
-            Identifier.of(Rituals.MOD_ID, "stun"),
+    // RegistryEntry -> Holder
+    public static final Holder<MobEffect> STUN = Registry.registerForHolder(
+            BuiltInRegistries.MOB_EFFECT, // Registries.STATUS_EFFECT -> BuiltInRegistries.MOB_EFFECT
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "stun"),
             new StunEffect()
     );
 
     public static void registerModStatusEffects() {
-        Rituals.LOGGER.info("Registering ModStatusEffects");
+        Rituals.LOGGER.info("Registering Mod Mob Effects for " + Rituals.MOD_ID);
     }
 }

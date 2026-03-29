@@ -2,76 +2,80 @@ package net.filipes.rituals.blocks.custom;
 
 import com.mojang.serialization.MapCodec;
 import net.filipes.rituals.blocks.entity.RitualPedestalBlockEntity;
-import net.minecraft.block.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
-public class RitualPedestalBlock extends BlockWithEntity {
+public class RitualPedestalBlock extends BaseEntityBlock {
 
-    public RitualPedestalBlock(Settings settings) {
-        super(settings);
+    public RitualPedestalBlock(Properties properties) {
+        super(properties);
     }
 
     @Override
-    protected MapCodec<? extends BlockWithEntity> getCodec() {
+    protected MapCodec<? extends BaseEntityBlock> codec() {
         return null;
     }
 
     @Override
-    public BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Nullable
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new RitualPedestalBlockEntity(pos, state);
     }
 
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        if (world.isClient()) return null;
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide()) return null;
         return (w, pos, s, be) -> {
             if (be instanceof RitualPedestalBlockEntity pedestal) {
                 pedestal.tick(w);
             }
         };
     }
-    private ItemStack mergeIntoPlayerInventory(PlayerEntity player, ItemStack stack) {
+
+    private ItemStack mergeIntoPlayerInventory(Player player, ItemStack stack) {
         if (stack.isEmpty()) return ItemStack.EMPTY;
 
-        net.minecraft.entity.player.PlayerInventory inv = player.getInventory();
+        Inventory inv = player.getInventory();
         ItemStack toGive = stack.copy();
 
-        for (int i = 0; i < inv.size() && !toGive.isEmpty(); i++) {
-            ItemStack slot = inv.getStack(i);
-            if (!slot.isEmpty() && ItemStack.areItemsEqual(slot, toGive)) {
-                int slotMax = Math.min(slot.getMaxCount(), slot.getItem().getMaxCount());
-                int space = slotMax - slot.getCount();
+        for (int i = 0; i < inv.getContainerSize() && !toGive.isEmpty(); i++) {
+            ItemStack slot = inv.getItem(i);
+            if (!slot.isEmpty() && ItemStack.isSameItem(slot, toGive)) {
+                int space = slot.getMaxStackSize() - slot.getCount();
                 if (space > 0) {
                     int put = Math.min(space, toGive.getCount());
-                    slot.increment(put);
-                    toGive.decrement(put);
-                    inv.setStack(i, slot);
+                    slot.grow(put);
+                    toGive.shrink(put);
+                    inv.setItem(i, slot);
                 }
             }
         }
 
-        for (int i = 0; i < inv.size() && !toGive.isEmpty(); i++) {
-            if (inv.getStack(i).isEmpty()) {
-                int put = Math.min(toGive.getCount(), toGive.getMaxCount());
-                inv.setStack(i, toGive.split(put));
+        for (int i = 0; i < inv.getContainerSize() && !toGive.isEmpty(); i++) {
+            if (inv.getItem(i).isEmpty()) {
+                int put = Math.min(toGive.getCount(), toGive.getMaxStackSize());
+                inv.setItem(i, toGive.split(put));
             }
         }
 
@@ -79,80 +83,79 @@ public class RitualPedestalBlock extends BlockWithEntity {
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-        if (!(world.getBlockEntity(pos) instanceof RitualPedestalBlockEntity pedestal)) {
-            return ActionResult.PASS;
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (!(level.getBlockEntity(pos) instanceof RitualPedestalBlockEntity pedestal)) {
+            return InteractionResult.PASS;
         }
 
-        ItemStack heldStack = player.getMainHandStack();
+        ItemStack heldStack = player.getMainHandItem();
 
-        if (world.isClient()) {
-            return heldStack.isEmpty() ? ActionResult.PASS : ActionResult.SUCCESS;
+        if (level.isClientSide()) {
+            return heldStack.isEmpty() ? InteractionResult.PASS : InteractionResult.SUCCESS;
         }
 
         if (heldStack.isEmpty()) {
-            if (player.isSneaking()) {
+            if (player.isShiftKeyDown()) {
                 ItemStack removed = pedestal.removeFirstNonEmpty();
                 if (!removed.isEmpty()) {
-
                     ItemStack leftover = mergeIntoPlayerInventory(player, removed);
                     if (!leftover.isEmpty()) {
-
-                        player.getInventory().offerOrDrop(leftover);
+                        if (!player.getInventory().add(leftover)) {
+                            player.drop(leftover, false);
+                        }
                     }
-                    world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP,
-                            net.minecraft.sound.SoundCategory.BLOCKS, 1.0f, 1.0f);
-                    return ActionResult.SUCCESS;
+                    level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 1.0f, 1.0f);
+                    return InteractionResult.SUCCESS;
                 }
             }
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
 
-        if (player.isSneaking()) {
+        if (player.isShiftKeyDown()) {
             boolean movedAny = false;
-
             ItemStack prototype = heldStack.copy();
 
-            if (!player.getMainHandStack().isEmpty() && ItemStack.areItemsEqual(player.getMainHandStack(), prototype)) {
-                ItemStack mainCopy = player.getMainHandStack().copy();
+            ItemStack mainItem = player.getMainHandItem();
+            if (!mainItem.isEmpty() && ItemStack.isSameItem(mainItem, prototype)) {
+                ItemStack mainCopy = mainItem.copy();
                 ItemStack leftover = pedestal.insertStack(mainCopy);
-                player.setStackInHand(Hand.MAIN_HAND, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
-                movedAny |= leftover.getCount() < player.getMainHandStack().getCount() || leftover.isEmpty();
+                player.setItemInHand(InteractionHand.MAIN_HAND, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
+                movedAny |= leftover.getCount() < mainCopy.getCount() || leftover.isEmpty();
             }
 
-            if (!player.getOffHandStack().isEmpty() && ItemStack.areItemsEqual(player.getOffHandStack(), prototype)) {
-                ItemStack offCopy = player.getOffHandStack().copy();
+            ItemStack offItem = player.getOffhandItem();
+            if (!offItem.isEmpty() && ItemStack.isSameItem(offItem, prototype)) {
+                ItemStack offCopy = offItem.copy();
                 ItemStack leftover = pedestal.insertStack(offCopy);
-                player.setStackInHand(Hand.OFF_HAND, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
-                movedAny |= leftover.getCount() < player.getOffHandStack().getCount() || leftover.isEmpty();
+                player.setItemInHand(InteractionHand.OFF_HAND, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
+                movedAny |= leftover.getCount() < offCopy.getCount() || leftover.isEmpty();
             }
 
-            net.minecraft.entity.player.PlayerInventory inv = player.getInventory();
-            for (int i = 0; i < inv.size(); i++) {
-                ItemStack slot = inv.getStack(i);
-                if (!slot.isEmpty() && ItemStack.areItemsEqual(slot, prototype)) {
-                    ItemStack leftover = pedestal.insertStack(slot.copy());
-                    inv.setStack(i, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
-                    movedAny |= leftover.getCount() < slot.getCount() || leftover.isEmpty();
+            Inventory inv = player.getInventory();
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                ItemStack slot = inv.getItem(i);
+                if (!slot.isEmpty() && ItemStack.isSameItem(slot, prototype)) {
+                    ItemStack slotCopy = slot.copy();
+                    ItemStack leftover = pedestal.insertStack(slotCopy);
+                    inv.setItem(i, leftover.isEmpty() ? ItemStack.EMPTY : leftover);
+                    movedAny |= leftover.getCount() < slotCopy.getCount() || leftover.isEmpty();
                 }
             }
 
             if (movedAny) {
-                world.playSound(null, pos, net.minecraft.sound.SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE,
-                        net.minecraft.sound.SoundCategory.BLOCKS, 1.0f, 1.0f);
-                return ActionResult.SUCCESS;
+                level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 1.0f, 1.0f);
+                return InteractionResult.SUCCESS;
             }
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
 
         ItemStack toInsert = heldStack.copyWithCount(1);
         ItemStack leftoverSingle = pedestal.insertStack(toInsert);
         if (leftoverSingle.isEmpty()) {
-            heldStack.decrement(1);
-            world.playSound(null, pos, net.minecraft.sound.SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE,
-                    net.minecraft.sound.SoundCategory.BLOCKS, 1.0f, 1.0f);
-            return ActionResult.SUCCESS;
+            heldStack.shrink(1);
+            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 1.0f, 1.0f);
+            return InteractionResult.SUCCESS;
         }
-        return ActionResult.PASS;
+        return InteractionResult.PASS;
     }
 }

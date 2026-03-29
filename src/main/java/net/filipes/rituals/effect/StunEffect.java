@@ -1,22 +1,26 @@
 package net.filipes.rituals.effect;
 
-import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectCategory;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
-public class StunEffect extends StatusEffect {
+public class StunEffect extends MobEffect {
 
     public StunEffect() {
-        super(StatusEffectCategory.HARMFUL, 0x9B6DFF); // purple particle color
-        // Directly bolt -90% speed onto the movement attribute.
-        // Because this is our own effect, undead inversion never applies.
-        addAttributeModifier(
-                EntityAttributes.MOVEMENT_SPEED,
-                Identifier.of("rituals", "stun_slowness"),
+        // Constructor now takes MobEffectCategory and the color int
+        super(MobEffectCategory.HARMFUL, 0x9B6DFF);
+
+        // addAttributeModifier -> addAttributeModifier
+        // EntityAttributes -> Attributes
+        // Identifier -> ResourceLocation
+        // EntityAttributeModifier.Operation -> AttributeModifier.Operation
+        this.addAttributeModifier(
+                Attributes.MOVEMENT_SPEED,
+                Identifier.fromNamespaceAndPath("rituals", "stun_slowness"),
                 -0.9,
-                EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         );
     }
 }

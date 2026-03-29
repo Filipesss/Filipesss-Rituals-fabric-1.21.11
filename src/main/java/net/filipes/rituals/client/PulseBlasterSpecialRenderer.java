@@ -1,24 +1,28 @@
 package net.filipes.rituals.client;
 
 import com.mojang.serialization.MapCodec;
-import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.item.model.special.SpecialModelRenderer;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemDisplayContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.class_3902;
-import net.minecraft.util.math.RotationAxis;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.special.SpecialModelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+
+import net.minecraft.world.item.ItemStack;
+
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.Unit;
+
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3fc;
 
 import java.util.function.Consumer;
 
-public class PulseBlasterSpecialRenderer implements SpecialModelRenderer<class_3902> {
+public class PulseBlasterSpecialRenderer implements SpecialModelRenderer<Unit> {
 
     private static final Identifier TEXTURE =
-            Identifier.of("rituals", "textures/item/pulse_blaster.png");
+            Identifier.fromNamespaceAndPath("rituals", "textures/item/pulse_blaster.png");
 
     private static final float MODEL_SCALE = 0.9f;
 
@@ -28,49 +32,53 @@ public class PulseBlasterSpecialRenderer implements SpecialModelRenderer<class_3
         this.model = model;
     }
 
+    // extractArgument() is the new getData()
     @Override
-    public @Nullable class_3902 getData(ItemStack stack) {
-        return class_3902.field_17274;
+    public @Nullable Unit extractArgument(ItemStack stack) {
+        return Unit.INSTANCE;
     }
 
+    // submit() is the new render()
     @Override
-    public void render(@Nullable class_3902 data, ItemDisplayContext displayContext,
-                       MatrixStack matrices, OrderedRenderCommandQueue queue,
-                       int light, int overlay, boolean glint, int i) {
-        matrices.push();
+    public void submit(@Nullable Unit data, PoseStack matrices,
+                       SubmitNodeCollector submitNodeCollector,
+                       int light, int overlay, boolean glint, int outlineColor) {
+        matrices.pushPose();
         matrices.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90f));
+        matrices.mulPose(Axis.XP.rotationDegrees(-90f));
 
-        float cylinderAngle = PulseBlasterCylinderState.getAngle();
-        model.render(matrices, queue, light, overlay, cylinderAngle, PulseBlasterCylinderState.isGlowing());
+        MultiBufferSource.BufferSource bufferSource =
+                Minecraft.getInstance().renderBuffers().bufferSource();
 
-        matrices.pop();
+        model.render(matrices, bufferSource, light, overlay,
+                PulseBlasterCylinderState.getAngle(), PulseBlasterCylinderState.isGlowing());
+
+        bufferSource.endBatch();
+
+        matrices.popPose();
     }
 
     @Override
-    public void collectVertices(Consumer<Vector3fc> consumer) {
-
-    }
-
-
+    public void getExtents(Consumer<Vector3fc> output) {}
 
     public static final class Unbaked implements SpecialModelRenderer.Unbaked {
 
         public static final MapCodec<Unbaked> CODEC = MapCodec.unit(Unbaked::new);
 
+        // type() is the new getCodec()
         @Override
-        public @Nullable SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-
-            return new PulseBlasterSpecialRenderer(
-                    new PulseBlasterGunModel(
-                            context.entityModelSet().getModelPart(PulseBlasterGunModel.LAYER)
-                    )
-            );
+        public MapCodec<Unbaked> type() {
+            return CODEC;
         }
 
+        // BakingContext is the new BakeContext
         @Override
-        public MapCodec<? extends SpecialModelRenderer.Unbaked> getCodec() {
-            return CODEC;
+        public @Nullable SpecialModelRenderer<?> bake(BakingContext context) {
+            return new PulseBlasterSpecialRenderer(
+                    new PulseBlasterGunModel(
+                            context.entityModelSet().bakeLayer(PulseBlasterGunModel.LAYER)  // getModelPart() → bakeLayer()
+                    )
+            );
         }
     }
 }

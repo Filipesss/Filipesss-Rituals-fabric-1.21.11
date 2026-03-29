@@ -1,117 +1,129 @@
 package net.filipes.rituals.entity.custom;
 
 import net.filipes.rituals.entity.ModEntities;
-import net.minecraft.block.AbstractFireBlock;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.projectile.ProjectileEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
-public class PulseBlasterBeamEntity extends ProjectileEntity {
+public class PulseBlasterBeamEntity extends Projectile {
 
     private static final float DAMAGE     = 8.0f;
-    private static final int   FIRE_TICKS = 5;
+    private static final int   FIRE_SECONDS = 5; // renamed from FIRE_TICKS since the method takes seconds
     private static final float BEAM_SPEED = 1.5f;
     private static final int   MAX_AGE    = 80;
 
-    private final World storedWorld;
+    private final Level storedWorld; // 'World' is now 'Level'
 
     public PulseBlasterBeamEntity(
             EntityType<? extends PulseBlasterBeamEntity> type,
-            World world
+            Level level
     ) {
-        super(type, world);
-        this.storedWorld = world;
+        super(type, level);
+        this.storedWorld = level;
         this.setNoGravity(true);
     }
 
-    public PulseBlasterBeamEntity(World world, LivingEntity owner) {
-        this(ModEntities.PULSE_BLASTER_BEAM, world);
+    public PulseBlasterBeamEntity(Level level, LivingEntity owner) {
+        this(ModEntities.PULSE_BLASTER_BEAM, level);
 
         this.setOwner(owner);
 
-        this.setPosition(
+        // setPosition -> setPos
+        this.setPos(
                 owner.getX(),
                 owner.getEyeY() - 0.1,
                 owner.getZ()
         );
 
-        this.setVelocity(owner, owner.getPitch(), owner.getYaw(), 0.0f, BEAM_SPEED, 0.0f);
+        // setVelocity -> shootFromRotation
+        this.shootFromRotation(owner, owner.getXRot(), owner.getYRot(), 0.0f, BEAM_SPEED, 0.0f);
     }
 
+    // initDataTracker -> defineSynchedData
     @Override
-    protected void initDataTracker(DataTracker.Builder builder) { }
-
-
+    protected void defineSynchedData(SynchedEntityData.Builder builder) { }
 
     @Override
     public void tick() {
         super.tick();
 
-        Vec3d currentPos = this.getEntityPos();
-        Vec3d velocity = this.getVelocity();
-        Vec3d nextPos = currentPos.add(velocity);
+        // Vec3d -> Vec3, getEntityPos -> position, getVelocity -> getDeltaMovement
+        Vec3 currentPos = this.position();
+        Vec3 velocity = this.getDeltaMovement();
+        Vec3 nextPos = currentPos.add(velocity);
 
-        // Check entity collisions first
-        EntityHitResult entityHit = ProjectileUtil.getEntityCollision(
+        // getEntityCollision -> getEntityHitResult
+        EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
                 storedWorld,
                 this,
                 currentPos,
                 nextPos,
-                this.getBoundingBox().stretch(velocity).expand(1.0),
+                // stretch -> expandTowards, expand -> inflate
+                this.getBoundingBox().expandTowards(velocity).inflate(1.0),
                 entity -> !entity.isSpectator() && entity != this.getOwner()
         );
 
-        if (entityHit != null && !storedWorld.isClient()) {
+        // isClient -> isClientSide
+        if (entityHit != null && !storedWorld.isClientSide()) {
             Entity target = entityHit.getEntity();
-            ServerWorld serverWorld = (ServerWorld) storedWorld;
+            ServerLevel serverLevel = (ServerLevel) storedWorld;
 
-            target.damage(
-                    serverWorld,
-                    serverWorld.getDamageSources().thrown(this, this.getOwner()),
+            // In recent versions, damage is handled via hurtServer
+            target.hurtServer(
+                    serverLevel,
+                    // getDamageSources() -> damageSources()
+                    serverLevel.damageSources().thrown(this, this.getOwner()),
                     DAMAGE
             );
-            target.setOnFireFor(FIRE_TICKS);
+            // setOnFireFor -> igniteForSeconds
+            target.igniteForSeconds(FIRE_SECONDS);
             this.discard();
             return;
         }
 
-        // Check block collisions
-        BlockHitResult blockHit = storedWorld.raycast(new RaycastContext(
+        // raycast -> clip, RaycastContext -> ClipContext
+        BlockHitResult blockHit = storedWorld.clip(new ClipContext(
                 currentPos,
                 nextPos,
-                RaycastContext.ShapeType.COLLIDER,
-                RaycastContext.FluidHandling.NONE,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
                 this
         ));
 
-        if (blockHit.getType() != HitResult.Type.MISS && !storedWorld.isClient()) {
-            BlockPos firePos = blockHit.getBlockPos().offset(blockHit.getSide());
+        if (blockHit.getType() != HitResult.Type.MISS && !storedWorld.isClientSide()) {
+            // offset(getSide) -> relative(getDirection)
+            BlockPos firePos = blockHit.getBlockPos().relative(blockHit.getDirection());
 
-            if (storedWorld.isAir(firePos)) {
-                storedWorld.setBlockState(
+            // isAir -> isEmptyBlock
+            if (storedWorld.isEmptyBlock(firePos)) {
+                // setBlockState -> setBlockAndUpdate
+                // AbstractFireBlock -> BaseFireBlock
+                storedWorld.setBlockAndUpdate(
                         firePos,
-                        AbstractFireBlock.getState(storedWorld, firePos)
+                        BaseFireBlock.getState(storedWorld, firePos)
                 );
             }
             this.discard();
             return;
         }
 
-        // No collision — move the entity
-        this.setPosition(nextPos.x, nextPos.y, nextPos.z);
+        // Move the entity
+        this.setPos(nextPos.x, nextPos.y, nextPos.z);
 
-        if (this.age > MAX_AGE) {
+        // age -> tickCount
+        if (this.tickCount > MAX_AGE) {
             this.discard();
         }
     }

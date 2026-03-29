@@ -1,28 +1,42 @@
 package net.filipes.rituals.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.filipes.rituals.blocks.entity.RitualPedestalBlockEntity;
-import net.filipes.rituals.client.render.state.PedestalRenderState;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.render.command.OrderedRenderCommandQueue;
-import net.minecraft.client.render.command.ModelCommandRenderer;
-import net.minecraft.client.render.state.CameraRenderState;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.text.OrderedText;
-import net.minecraft.util.math.Vec3d;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Quaternionf;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
-public class RitualPedestalBlockEntityRenderer implements BlockEntityRenderer<RitualPedestalBlockEntity, PedestalRenderState> {
-    private final TextRenderer font;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 
-    public RitualPedestalBlockEntityRenderer(BlockEntityRendererFactory.Context ctx) {
-        this.font = ctx.textRenderer();
+public class RitualPedestalBlockEntityRenderer
+        implements BlockEntityRenderer<RitualPedestalBlockEntity, RitualPedestalBlockEntityRenderer.PedestalRenderState> {
+
+    private final Font font;
+
+    public RitualPedestalBlockEntityRenderer(BlockEntityRendererProvider.Context ctx) {
+        this.font = ctx.font();
+    }
+
+    // -------------------------------------------------------------------------
+    // Render state
+    // -------------------------------------------------------------------------
+
+    public static class PedestalRenderState extends BlockEntityRenderState {
+        public final List<FormattedCharSequence> lines = new ArrayList<>();
     }
 
     @Override
@@ -31,56 +45,71 @@ public class RitualPedestalBlockEntityRenderer implements BlockEntityRenderer<Ri
     }
 
     @Override
-    public void updateRenderState(RitualPedestalBlockEntity be, PedestalRenderState state, float tickDelta, Vec3d cameraPos, @Nullable ModelCommandRenderer.CrumblingOverlayCommand crumblingOverlay) {
-        BlockEntityRenderer.super.updateRenderState(be, state, tickDelta, cameraPos, crumblingOverlay);
+    public void extractRenderState(RitualPedestalBlockEntity blockEntity,
+                                   PedestalRenderState state,
+                                   float partialTicks,
+                                   Vec3 cameraPosition,
+                                   ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
+        BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTicks, cameraPosition, breakProgress);
 
-        state.lines.clear();
+        LinkedHashMap<String, Integer>          countMap = new LinkedHashMap<>();
+        LinkedHashMap<String, MutableComponent> nameMap  = new LinkedHashMap<>();
 
-        // Key by registry ID string — completely unambiguous
-        java.util.LinkedHashMap<String, Integer> countMap = new java.util.LinkedHashMap<>();
-        java.util.LinkedHashMap<String, MutableText> nameMap = new java.util.LinkedHashMap<>();
-
-        for (int i = 0; i < be.size(); i++) {
-            ItemStack stack = be.getStack(i);
+        for (int i = 0; i < blockEntity.getContainerSize(); i++) {
+            ItemStack stack = blockEntity.getItem(i);
             if (!stack.isEmpty()) {
-                String id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).toString();
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
                 countMap.merge(id, stack.getCount(), Integer::sum);
-                nameMap.putIfAbsent(id, stack.getName().copy());
+                nameMap.putIfAbsent(id, stack.getHoverName().copy());
             }
         }
 
+        state.lines.clear();
         for (String id : countMap.keySet()) {
             int total = countMap.get(id);
-            MutableText line = nameMap.get(id).copy();
-            line.append(" " + total + "x");
-            state.lines.add(line.asOrderedText());
+            MutableComponent line = nameMap.get(id).copy().append(" " + total + "x");
+            state.lines.add(line.getVisualOrderText());
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Rendering
+    // -------------------------------------------------------------------------
+
     @Override
-    public void render(PedestalRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
-        OrderedText text = Text.literal("Hello!").asOrderedText();
-        int fullBright = LightmapTextureManager.MAX_LIGHT_COORDINATE;
+    public void submit(PedestalRenderState state,
+                       PoseStack poseStack,
+                       SubmitNodeCollector collector,
+                       CameraRenderState camera) {
+        if (state.lines.isEmpty()) return;
 
-        matrices.push();
-        matrices.translate(0.5, 2.0, 0.5);
-        matrices.multiply(new Quaternionf(cameraState.orientation));
-        matrices.scale(-0.025f, -0.025f, 0.025f);
+        MultiBufferSource.BufferSource bufferSource =
+                Minecraft.getInstance().renderBuffers().bufferSource();
 
-        int width = font.getWidth(text);
-        float x = -width / 2f;
+        poseStack.pushPose();
+        poseStack.translate(0.5, 2.0, 0.5);
 
-        queue.submitText(
-                matrices,
-                x, 0f,
-                text,
-                false,
-                TextRenderer.TextLayerType.SEE_THROUGH,
-                fullBright,
-                0xFFFFFF,
-                0,
-                0
-        );
-        matrices.pop();
+        // camera.orientation is a public Quaternionf field, not a method
+        poseStack.mulPose(camera.orientation);
+        poseStack.scale(-0.025f, -0.025f, 0.025f);
+
+        float y = 0f;
+        for (FormattedCharSequence line : state.lines) {
+            float x = -font.width(line) / 2f;
+            font.drawInBatch(
+                    line, x, y,
+                    0xFFFFFF,
+                    false,
+                    poseStack.last().pose(),
+                    bufferSource,
+                    Font.DisplayMode.SEE_THROUGH,
+                    0,
+                    0xF000F0
+            );
+            y += font.lineHeight + 1;
+        }
+
+        bufferSource.endBatch();
+        poseStack.popPose();
     }
 }
