@@ -20,11 +20,11 @@ public class RosegoldPickaxeUsageEvent implements PlayerBlockBreakEvents.Before 
 
     @Override
     public boolean beforeBlockBreak(Level level, Player player, BlockPos pos, BlockState blockState, @Nullable BlockEntity blockEntity) {
-        ItemStack mainHandItem = player.getMainHandItem();  // was getMainHandStack()
+        ItemStack mainHandItem = player.getMainHandItem();
 
         if (mainHandItem.getItem() instanceof RosegoldPickaxeItem rosegoldPickaxe && player instanceof ServerPlayer serverPlayer) {
             if (HARVESTED_BLOCKS.contains(pos)) {
-                return true; // prevent recursion / double-break
+                return true;
             }
 
             for (BlockPos position : RosegoldPickaxeItem.getBlocksToBeDestroyed(1, pos, serverPlayer)) {
@@ -37,13 +37,13 @@ public class RosegoldPickaxeUsageEvent implements PlayerBlockBreakEvents.Before 
                     continue;
                 }
 
-                float hardness = targetState.getDestroySpeed(level, position); // was getHardness()
+                float hardness = targetState.getDestroySpeed(level, position);
                 if (hardness < 0.0F) {
                     continue;
                 }
 
                 HARVESTED_BLOCKS.add(position);
-                serverPlayer.gameMode.destroyBlock(position); // was interactionManager.tryBreakBlock()
+                serverPlayer.gameMode.destroyBlock(position);
                 HARVESTED_BLOCKS.remove(position);
             }
         }

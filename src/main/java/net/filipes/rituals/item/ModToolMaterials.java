@@ -1,7 +1,6 @@
 package net.filipes.rituals.item;
 
 import net.filipes.rituals.util.ModTags;
-
 import net.minecraft.world.item.ToolMaterial;
 
 public class ModToolMaterials {

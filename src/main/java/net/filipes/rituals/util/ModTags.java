@@ -14,7 +14,6 @@ public class ModTags {
         public static final TagKey<Block> INCORRECT_FOR_ROSEGOLD_TOOL = createTag("incorrect_for_rosegold_tool");
 
         private static TagKey<Block> createTag(String name) {
-            // TagKey.create and Identifier.fromNamespaceAndPath are the Mojang Mapping standards
             return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Rituals.MOD_ID, name));
         }
     }

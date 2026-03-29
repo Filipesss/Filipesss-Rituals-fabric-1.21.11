@@ -4,33 +4,17 @@ import net.filipes.rituals.Rituals;
 import net.filipes.rituals.item.custom.LightningRapierItem;
 import net.filipes.rituals.item.custom.PulseBlasterItem;
 import net.filipes.rituals.item.custom.RosegoldPickaxeItem;
-
-// DataComponentTypes → DataComponents
 import net.minecraft.core.component.DataComponents;
-
-// Registry/Registries/RegistryKey split into two packages in Mojang
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;  // was: Registries (instance registry)
-import net.minecraft.core.registries.Registries;         // was: RegistryKeys (key registry)
-
-// Identifier → ResourceLocation; RegistryKey → ResourceKey
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
-
 import net.minecraft.resources.ResourceKey;
-
-
-// class_3902 (intermediary) → Unbreakable
-
-// LoreComponent → ItemLore
 import net.minecraft.util.Unit;
 import net.minecraft.world.item.component.ItemLore;
-
-// Text → Component; TextColor stays but moves to network.chat
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
-
 import net.minecraft.world.item.Item;
-
 import java.util.List;
 import java.util.function.Function;
 
@@ -62,8 +46,6 @@ public class ModItems {
     public static final Item ROSEGOLD_PICKAXE = registerItem("rosegold_pickaxe",
             settings -> new RosegoldPickaxeItem(ModToolMaterials.ROSEGOLD, 1.0F, -2.8F, settings),
             new Item.Properties()
-                    // class_3902.field_17274 → new Unbreakable(false)
-                    // false = don't show the "Unbreakable" tooltip line; flip to true if you want it shown
                     .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
                     .fireResistant()
                     .component(DataComponents.LORE,
@@ -73,7 +55,7 @@ public class ModItems {
     public static final Item LIGHTNING_RAPIER = registerItem("lightning_rapier",
             settings -> new LightningRapierItem(ModToolMaterials.ROSEGOLD, 1.5F, -1.8F, settings),
             new Item.Properties()
-                    .stacksTo(1)                                           // maxCount() → stacksTo()
+                    .stacksTo(1)
                     .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
                     .component(DataComponents.LORE,
                             new ItemLore(List.of(
@@ -94,13 +76,10 @@ public class ModItems {
                             ))));
 
     private static Item registerItem(String name, Function<Item.Properties, Item> creator, Item.Properties settings) {
-        // Identifier.of() → ResourceLocation.fromNamespaceAndPath()
         Identifier id = Identifier.fromNamespaceAndPath(Rituals.MOD_ID, name);
-        // RegistryKey.of(RegistryKeys.ITEM, ...) → ResourceKey.create(Registries.ITEM, ...)
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
-        settings = settings.setId(key);            // registryKey() → setId()
+        settings = settings.setId(key);
         Item item = creator.apply(settings);
-        // Registry.register(Registries.ITEM, ...) → Registry.register(BuiltInRegistries.ITEM, ...)
         return Registry.register(BuiltInRegistries.ITEM, id, item);
     }
 

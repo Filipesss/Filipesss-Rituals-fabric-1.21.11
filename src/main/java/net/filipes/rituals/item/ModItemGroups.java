@@ -7,7 +7,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.CreativeModeTab; // Mojang name for ItemGroup
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 
 public class ModItemGroups {
@@ -19,9 +19,7 @@ public class ModItemGroups {
                     .icon(() -> new ItemStack(ModItems.HANDLE))
                     .title(Component.translatable("itemgroup.rituals.rituals_items"))
                     .displayItems((parameters, output) -> {
-                        // In 26.1 Mojang Mappings, the method is 'accept'
-                        // Ensure ModItems and ModBlocks use net.minecraft.world.item.Item
-                        // and net.minecraft.world.level.block.Block
+
                         output.accept(ModItems.HANDLE);
                         output.accept(ModBlocks.BLOCK_TEST);
                         output.accept(ModBlocks.RITUAL_PEDESTAL);

@@ -32,13 +32,11 @@ public class PulseBlasterSpecialRenderer implements SpecialModelRenderer<Unit> {
         this.model = model;
     }
 
-    // extractArgument() is the new getData()
     @Override
     public @Nullable Unit extractArgument(ItemStack stack) {
         return Unit.INSTANCE;
     }
 
-    // submit() is the new render()
     @Override
     public void submit(@Nullable Unit data, PoseStack matrices,
                        SubmitNodeCollector submitNodeCollector,
@@ -65,18 +63,16 @@ public class PulseBlasterSpecialRenderer implements SpecialModelRenderer<Unit> {
 
         public static final MapCodec<Unbaked> CODEC = MapCodec.unit(Unbaked::new);
 
-        // type() is the new getCodec()
         @Override
         public MapCodec<Unbaked> type() {
             return CODEC;
         }
 
-        // BakingContext is the new BakeContext
         @Override
         public @Nullable SpecialModelRenderer<?> bake(BakingContext context) {
             return new PulseBlasterSpecialRenderer(
                     new PulseBlasterGunModel(
-                            context.entityModelSet().bakeLayer(PulseBlasterGunModel.LAYER)  // getModelPart() → bakeLayer()
+                            context.entityModelSet().bakeLayer(PulseBlasterGunModel.LAYER)
                     )
             );
         }

@@ -31,9 +31,9 @@ public class RitualPedestalBlockEntityRenderer
         this.font = ctx.font();
     }
 
-    // -------------------------------------------------------------------------
+    // ------------
     // Render state
-    // -------------------------------------------------------------------------
+    // ------------
 
     public static class PedestalRenderState extends BlockEntityRenderState {
         public final List<FormattedCharSequence> lines = new ArrayList<>();
@@ -72,9 +72,9 @@ public class RitualPedestalBlockEntityRenderer
         }
     }
 
-    // -------------------------------------------------------------------------
+    // ---------
     // Rendering
-    // -------------------------------------------------------------------------
+    // ---------
 
     @Override
     public void submit(PedestalRenderState state,
@@ -88,8 +88,6 @@ public class RitualPedestalBlockEntityRenderer
 
         poseStack.pushPose();
         poseStack.translate(0.5, 2.0, 0.5);
-
-        // camera.orientation is a public Quaternionf field, not a method
         poseStack.mulPose(camera.orientation);
         poseStack.scale(-0.025f, -0.025f, 0.025f);
 

@@ -49,14 +49,13 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         super(ModBlockEntities.RITUAL_PEDESTAL_BE, pos, state);
     }
 
-    // -------------------------------------------------------------------------
+    // ----
     // Tick
-    // -------------------------------------------------------------------------
+    // ----
 
     public void tick(Level world) {
         if (!(world instanceof ServerLevel serverLevel)) return;
 
-        // --- Manage text display entity ---
         if (displayEntityUuid != null) {
             Entity existing = serverLevel.getEntity(displayEntityUuid);
             if (existing == null || existing.isRemoved()) displayEntityUuid = null;
@@ -64,7 +63,6 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
 
         if (displayEntityUuid == null) {
             Display.TextDisplay display = new Display.TextDisplay(EntityType.TEXT_DISPLAY, serverLevel);
-            // Display entity setup
             display.setPos(
                     worldPosition.getX() + 0.5,
                     worldPosition.getY() + 1.8,
@@ -79,7 +77,6 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
             displayEntityUuid = display.getUUID();
         }
 
-        // --- Distinct item types (insertion order, capped at MAX_FLOATING) ---
         LinkedHashMap<String, ItemStack> exemplarMap = new LinkedHashMap<>();
         for (ItemStack stack : items) {
             if (!stack.isEmpty()) {
@@ -100,7 +97,6 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
 
         int desired = exemplarMap.size();
 
-        // Remove extra floating slots
         while (floatingItemUuids.size() > desired) {
             int idx = floatingItemUuids.size() - 1;
             UUID u = floatingItemUuids.remove(idx);
@@ -190,9 +186,9 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         }
     }
 
-    // -------------------------------------------------------------------------
+    // ----------
     // Lifecycle
-    // -------------------------------------------------------------------------
+    // ----------
 
     @Override
     public void setRemoved() {
@@ -219,9 +215,9 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         floatingItemIds.clear();
     }
 
-    // -------------------------------------------------------------------------
+    // ------------
     // Display text
-    // -------------------------------------------------------------------------
+    // ------------
 
     private Component buildDisplayText() {
         LinkedHashMap<String, Integer>   countMap = new LinkedHashMap<>();
@@ -255,9 +251,9 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         if (entity instanceof Display.TextDisplay display) display.setText(buildDisplayText());
     }
 
-    // -------------------------------------------------------------------------
+    // -------------------
     // Container interface
-    // -------------------------------------------------------------------------
+    // -------------------
 
     @Override public int  getContainerSize() { return items.size(); }
 
@@ -295,10 +291,9 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
 
     @Override public void clearContent() { items.clear(); setChanged(); }
 
-    // -------------------------------------------------------------------------
+    // --------------
     // Serialization
-    // -------------------------------------------------------------------------
-
+    // --------------
     @Override
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
@@ -371,9 +366,9 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         }
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------
     // Public helpers
-    // -------------------------------------------------------------------------
+    // ---------------
 
     public ItemStack insertStack(ItemStack stack) {
         if (stack.isEmpty()) return ItemStack.EMPTY;

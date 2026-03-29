@@ -39,6 +39,6 @@ public final class ModSounds {
             );
 
     public static void initialize() {
-        // intentionally empty; touching the class loads the static fields
+
     }
 }

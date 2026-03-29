@@ -7,6 +7,5 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PedestalRenderState extends BlockEntityRenderState {
-    // OrderedText -> FormattedCharSequence
     public final List<FormattedCharSequence> lines = new ArrayList<>();
 }

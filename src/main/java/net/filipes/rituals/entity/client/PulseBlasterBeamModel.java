@@ -12,7 +12,6 @@ import net.minecraft.resources.Identifier;
 
 public class PulseBlasterBeamModel {
 
-    // EntityModelLayer -> ModelLayerLocation
     public static final ModelLayerLocation LAYER = new ModelLayerLocation(
             Identifier.fromNamespaceAndPath("rituals", "pulse_blaster_beam"), "main");
 
@@ -22,13 +21,10 @@ public class PulseBlasterBeamModel {
         this.bone = root.getChild("bone");
     }
 
-    // getTexturedModelData -> createBodyLayer
     public static LayerDefinition createBodyLayer() {
-        // ModelData -> MeshDefinition
         MeshDefinition meshdefinition = new MeshDefinition();
         PartDefinition partdefinition = meshdefinition.getRoot();
 
-        // ModelPartBuilder -> CubeListBuilder
         PartDefinition bone = partdefinition.addOrReplaceChild("bone", CubeListBuilder.create()
                         .texOffs(0, 0).addBox(-8.001F, -7.0F, 7.0F, 0.001F, 7.0F, 2.0F, CubeDeformation.NONE)
                         .texOffs(4, 16).addBox(-8.05F, -7.025F, 7.05F, 0.1F, 7.05F, 1.9F, CubeDeformation.NONE)
@@ -45,7 +41,6 @@ public class PulseBlasterBeamModel {
                         .texOffs(4, 0).addBox(-1.0F, -7.0F, 0.0F, 0.0F, 7.0F, 2.0F, CubeDeformation.NONE),
                 PartPose.offsetAndRotation(-7.0F, 0.0F, 9.0F, 0.0F, -1.5708F, 0.0F));
 
-        // TexturedModelData -> LayerDefinition
         return LayerDefinition.create(meshdefinition, 32, 32);
     }
 

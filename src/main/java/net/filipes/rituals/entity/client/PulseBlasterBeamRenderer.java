@@ -30,9 +30,9 @@ public class PulseBlasterBeamRenderer
         this.model = new PulseBlasterBeamModel(context.bakeLayer(PulseBlasterBeamModel.LAYER));
     }
 
-    // -------------------------------------------------------------------------
+    // ------------
     // Render state
-    // -------------------------------------------------------------------------
+    // ------------
 
     public static class BeamRenderState extends EntityRenderState {
         public boolean hasVelocity = false;
@@ -65,9 +65,9 @@ public class PulseBlasterBeamRenderer
         }
     }
 
-    // -------------------------------------------------------------------------
+    // ----------
     // Rendering
-    // -------------------------------------------------------------------------
+    // ----------
 
     @Override
     public void submit(BeamRenderState state,

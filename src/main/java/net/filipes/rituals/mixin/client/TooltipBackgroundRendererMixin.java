@@ -31,16 +31,13 @@ public class TooltipBackgroundRendererMixin {
         RitualsTooltipStyle style = TooltipStyleHolder.currentStyle;
         if (style != null) {
             if (texture.getPath().contains("background")) {
-                // Fill the inner area, trimming the 9px sprite padding
                 graphics.fill(x + 9, y + 9, x + width - 9, y + height - 9,
                         style.getTooltipBackgroundColor());
             } else {
-                // Draw border as a stroked rectangle outline
                 graphics.outline(x + 9, y + 9, width - 18, height - 18,
                         style.getTooltipBorderColor());
             }
         } else {
-            // Vanilla fallback
             graphics.blitSprite(pipeline, texture, x, y, width, height);
         }
     }

@@ -24,11 +24,10 @@ public class Rituals implements ModInitializer {
 		ModBlocks.registerModBlocks();
 		ModItems.registerModItems();
 		ModStatusEffects.registerModStatusEffects();
-		ModBlockEntities.registerModBlockEntities(); // ADD THIS
+		ModBlockEntities.registerModBlockEntities();
 		ModItemGroups.registerItemGroups();
 		ModEntities.registerModEntities();
 		ModSounds.initialize();
-		// Register the payload type for S2C
 		PayloadTypeRegistry.clientboundPlay().register(
 				PulseBlasterAmmoPayload.ID,
 				PulseBlasterAmmoPayload.CODEC

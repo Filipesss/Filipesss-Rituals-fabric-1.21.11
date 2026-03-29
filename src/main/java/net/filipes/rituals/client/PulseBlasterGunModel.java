@@ -127,7 +127,6 @@ public class PulseBlasterGunModel {
                        int light, int overlay, float cylinderAngle, boolean glowCylinder) {
         this.cylinder.yRot = cylinderAngle;
 
-        // entityCutoutNoCull moved to RenderTypes (plural) in 1.21.5
         VertexConsumer consumer = bufferSource.getBuffer(RenderTypes.entityCutout(TEXTURE));
 
         this.bb_main.render(poseStack, consumer, light, overlay);

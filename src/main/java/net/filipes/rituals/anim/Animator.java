@@ -1,8 +1,5 @@
 package net.filipes.rituals.anim;
 
-
-
-import net.minecraft.util.Mth;
 import org.joml.Vector3f;
 
 import java.util.HashMap;
@@ -66,7 +63,6 @@ public final class Animator {
     }
 
     private static Vector3f lerpVec(Vector3f a, Vector3f b, float f) {
-        // This does the exact same thing as your Mth.lerp logic but is cleaner
         return new Vector3f(a).lerp(b, f);
     }
 }

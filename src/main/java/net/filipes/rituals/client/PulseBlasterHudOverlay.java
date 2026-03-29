@@ -39,7 +39,6 @@ public class PulseBlasterHudOverlay {
                 }
         );
 
-        // Register after BOSS_BAR so it renders with the main HUD
         HudElementRegistry.attachElementAfter(
                 VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath("rituals", "pulse_blaster_hud"),

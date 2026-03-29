@@ -6,13 +6,12 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.effect.MobEffect; // StatusEffect -> MobEffect
+import net.minecraft.world.effect.MobEffect;
 
 public class ModStatusEffects {
 
-    // RegistryEntry -> Holder
     public static final Holder<MobEffect> STUN = Registry.registerForHolder(
-            BuiltInRegistries.MOB_EFFECT, // Registries.STATUS_EFFECT -> BuiltInRegistries.MOB_EFFECT
+            BuiltInRegistries.MOB_EFFECT,
             Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "stun"),
             new StunEffect()
     );
