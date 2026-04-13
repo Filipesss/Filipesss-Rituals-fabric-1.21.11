@@ -8,21 +8,25 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.filipes.rituals.blocks.entity.ModBlockEntities;
-import net.filipes.rituals.client.PulseBlasterCylinderState;
-import net.filipes.rituals.client.PulseBlasterGunModel;
-import net.filipes.rituals.client.PulseBlasterHudOverlay;
-import net.filipes.rituals.client.PulseBlasterSpecialRenderer;
+import net.filipes.rituals.client.*;
+import net.filipes.rituals.client.cooldown.CooldownHudOverlay;
+import net.filipes.rituals.client.cooldown.CooldownManager;
 import net.filipes.rituals.client.render.RitualPedestalBlockEntityRenderer;
 import net.filipes.rituals.entity.ModEntities;
 import net.filipes.rituals.entity.client.PulseBlasterBeamModel;
 import net.filipes.rituals.entity.client.PulseBlasterBeamRenderer;
+import net.filipes.rituals.item.custom.RosegoldPickaxeItem;
+import net.filipes.rituals.network.ShadowguardInvisiblePacket;
+import net.filipes.rituals.network.TogglePickaxeMiningPacket;
 import net.filipes.rituals.screen.AmethystHourglassScreen;
 import net.filipes.rituals.screen.ModMenuTypes;
 import net.filipes.rituals.util.TooltipStyleHolder;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
@@ -44,6 +48,10 @@ public class RitualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
 
+        // 1. We removed the stray 'while (actionOne.consumeClick())' loop from here.
+
+        // 2. Initialize actionOne just like your other keybinds.
+        // I put GLFW_KEY_R as a placeholder, feel free to change it!
         actionOne = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.rituals.action_one",
                 InputConstants.Type.KEYSYM,
@@ -94,18 +102,38 @@ public class RitualsClient implements ClientModInitializer {
                 (MapCodec<? extends SpecialModelRenderer.Unbaked<?>>) (MapCodec<?>) PulseBlasterSpecialRenderer.Unbaked.CODEC
         );
         MenuScreens.register(ModMenuTypes.AMETHYST_HOURGLASS, AmethystHourglassScreen::new);
-
-
+        RosegoldPickaxeHudOverlay.register();
+        CooldownManager.register("pickaxe_test", "Test Ability", 15_000, 0xFF66FF);
+        CooldownHudOverlay.register();
         PulseBlasterHudOverlay.register();
+        ShadowguardHudOverlay.register();
 
+        ClientPlayNetworking.registerGlobalReceiver(
+                ShadowguardInvisiblePacket.TYPE,
+                (packet, context) -> ShadowguardHudOverlay.trigger()
+        );
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             PulseBlasterCylinderState.tick();
 
             while (actionOne.consumeClick()) {
-                // TODO: Action 1 logic
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) {
+                    var held = mc.player.getMainHandItem();
+                    if (held.getItem() instanceof RosegoldPickaxeItem
+                            && RosegoldPickaxeItem.getStage(held) >= 4) {
+                        ClientPlayNetworking.send(new TogglePickaxeMiningPacket());
+                    }
+                }
             }
             while (actionTwo.consumeClick()) {
-                // TODO: Action 2 logic
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) {
+                    var held = mc.player.getMainHandItem();
+                    if (held.getItem() instanceof RosegoldPickaxeItem
+                            && RosegoldPickaxeItem.getStage(held) >= 4) {
+                        CooldownManager.trigger("pickaxe_test");
+                    }
+                }
             }
             while (actionThree.consumeClick()) {
                 // TODO: Action 3 logic

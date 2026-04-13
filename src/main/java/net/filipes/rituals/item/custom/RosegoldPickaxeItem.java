@@ -31,8 +31,11 @@ public class RosegoldPickaxeItem extends Item implements RitualsTooltipStyle {
     public static int getStage(ItemStack stack) {
         return ModDataComponents.getStage(stack);
     }
-
+    public static boolean isMiningEnabled(ItemStack stack) {
+        return stack.getOrDefault(ModDataComponents.MINING_ENABLED, true);
+    }
     public static MiningMode getMiningMode(ItemStack stack) {
+        if (!isMiningEnabled(stack)) return MiningMode.NONE;
         return switch (getStage(stack)) {
             case 5 -> MiningMode.CUBE_3X3X3;
             case 4 -> MiningMode.FLAT_3X3;

@@ -15,21 +15,17 @@
   "itemgroup.rituals.rituals_items": "Rituals",
 
   "tooltip.rituals.handle": "desc",
-
-
   "tooltip.rituals.block_test": "desc",
-
-
   "tooltip.rituals.rosegold_pickaxe": "desc",
   "tooltip.rituals.pulse_blaster": "desc",
   "tooltip.rituals.lightning_rapier": "desc",
 
   "block.rituals.amethyst_hourglass": "Amethyst Hourglass",
-
   "tooltip.rituals.ritual_pedestal": "Your not supposed to have this...",
   "key.category.rituals": "Rituals",
   "key.rituals.action_one":   "Action 1",
   "key.rituals.action_two":   "Action 2",
-  "key.rituals.action_three": "Action 3"
-
+  "key.rituals.action_three": "Action 3",
+  "item.rituals.upgrade.kill_upgrade": "%s upgraded from stage %s → %s through blood.",
+  "tooltip.rituals.shadowguard.kills": "Kills: %s"
 }

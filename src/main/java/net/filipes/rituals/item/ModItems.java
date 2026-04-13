@@ -9,10 +9,16 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Unit;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.equipment.ArmorType;
+
 import java.util.List;
 import java.util.function.Function;
 
@@ -100,11 +106,79 @@ public class ModItems {
             new Item.Properties()
                     .stacksTo(1)
                     .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+                    .component(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.builder()
+                            .add(
+                                    Attributes.ATTACK_DAMAGE,
+                                    new AttributeModifier(
+                                            Identifier.withDefaultNamespace("base_attack_damage"),
+                                            5.0,  // same as vanilla mace (1 base + 5 = 6 total)
+                                            AttributeModifier.Operation.ADD_VALUE
+                                    ),
+                                    EquipmentSlotGroup.MAINHAND
+                            )
+                            .add(
+                                    Attributes.ATTACK_SPEED,
+                                    new AttributeModifier(
+                                            Identifier.withDefaultNamespace("base_attack_speed"),
+                                            -3.4, // vanilla mace attack speed (4.0 - 3.4 = 0.6/s)
+                                            AttributeModifier.Operation.ADD_VALUE
+                                    ),
+                                    EquipmentSlotGroup.MAINHAND
+                            )
+                            .build()
+                    )
                     .component(DataComponents.LORE,
                             new ItemLore(List.of(
                                     Component.translatable("tooltip.rituals.shadowguard")
-                                            .withStyle(style -> style.withColor(TextColor.fromRgb(0x9B6DFF)).withItalic(false))
-                            ))));
+                                            .withStyle(style -> style
+                                                    .withColor(TextColor.fromRgb(0x9B6DFF))
+                                                    .withItalic(false))
+                            )))
+    );
+    public static final Item BLIGHTSPEAR = registerItem("blightspear",
+            settings -> new BlightspearItem(
+                ModToolMaterials.ROSEGOLD,
+                    4.0f,
+                    1.2f,
+                    settings
+            ),
+            new Item.Properties().stacksTo(1)
+    );
+
+
+// ...
+
+    public static final Item ROSEGOLD_HELMET = registerItem("rosegold_helmet",
+            settings -> new RosegoldHelmetItem(ModArmorMaterials.ROSEGOLD, settings),
+            new Item.Properties().humanoidArmor(ModArmorMaterials.ROSEGOLD, ArmorType.HELMET)
+                    .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+                    .component(DataComponents.LORE,
+                            new ItemLore(List.of(Component.translatable("tooltip.rituals.rosegold_armor")
+                                    .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFB6C1)).withItalic(false))))));
+
+    public static final Item ROSEGOLD_CHESTPLATE = registerItem("rosegold_chestplate",
+            settings -> new RosegoldChestplateItem(ModArmorMaterials.ROSEGOLD, settings),
+            new Item.Properties().humanoidArmor(ModArmorMaterials.ROSEGOLD, ArmorType.CHESTPLATE)
+                    .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+                    .component(DataComponents.LORE,
+                            new ItemLore(List.of(Component.translatable("tooltip.rituals.rosegold_armor")
+                                    .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFB6C1)).withItalic(false))))));
+
+    public static final Item ROSEGOLD_LEGGINGS = registerItem("rosegold_leggings",
+            settings -> new RosegoldLeggingsItem(ModArmorMaterials.ROSEGOLD, settings),
+            new Item.Properties().humanoidArmor(ModArmorMaterials.ROSEGOLD, ArmorType.LEGGINGS)
+                    .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+                    .component(DataComponents.LORE,
+                            new ItemLore(List.of(Component.translatable("tooltip.rituals.rosegold_armor")
+                                    .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFB6C1)).withItalic(false))))));
+
+    public static final Item ROSEGOLD_BOOTS = registerItem("rosegold_boots",
+            settings -> new RosegoldBootsItem(ModArmorMaterials.ROSEGOLD, settings),
+            new Item.Properties().humanoidArmor(ModArmorMaterials.ROSEGOLD, ArmorType.BOOTS)
+                    .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+                    .component(DataComponents.LORE,
+                            new ItemLore(List.of(Component.translatable("tooltip.rituals.rosegold_armor")
+                                    .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFB6C1)).withItalic(false))))));
 
     private static Item registerItem(String name, Function<Item.Properties, Item> creator, Item.Properties settings) {
         Identifier id = Identifier.fromNamespaceAndPath(Rituals.MOD_ID, name);

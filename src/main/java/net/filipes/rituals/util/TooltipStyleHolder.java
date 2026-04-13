@@ -3,10 +3,6 @@ package net.filipes.rituals.util;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-/**
- * Shared state between the tooltip event (sets the style)
- * and the mixin (reads the style while drawing the border).
- */
 public class TooltipStyleHolder {
 
     @Nullable

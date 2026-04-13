@@ -14,21 +14,45 @@ import java.util.List;
 public class ModDataComponents {
 
     public static DataComponentType<Integer> UPGRADE_STAGE;
+    public static DataComponentType<Integer> KILL_COUNT;
+    public static final DataComponentType<Boolean> MINING_ENABLED = Registry.register(
+            BuiltInRegistries.DATA_COMPONENT_TYPE,
+            Identifier.fromNamespaceAndPath("rituals", "mining_enabled"),
+            DataComponentType.<Boolean>builder()
+                    .persistent(Codec.BOOL)
+                    .networkSynchronized(ByteBufCodecs.BOOL)
+                    .build()
+    );
 
     public static void register() {
         UPGRADE_STAGE = Registry.register(
                 BuiltInRegistries.DATA_COMPONENT_TYPE,
                 Identifier.fromNamespaceAndPath("rituals", "upgrade_stage"),
                 DataComponentType.<Integer>builder()
-                        .persistent(Codec.intRange(1, 5))
+                        .persistent(Codec.intRange(1, 7))
+                        .networkSynchronized(ByteBufCodecs.VAR_INT)
+                        .build()
+        );
+
+        KILL_COUNT = Registry.register(
+                BuiltInRegistries.DATA_COMPONENT_TYPE,
+                Identifier.fromNamespaceAndPath("rituals", "kill_count"),
+                DataComponentType.<Integer>builder()
+                        .persistent(Codec.intRange(0, Integer.MAX_VALUE))
                         .networkSynchronized(ByteBufCodecs.VAR_INT)
                         .build()
         );
     }
 
+
     public static int getStage(net.minecraft.world.item.ItemStack stack) {
         Integer stage = stack.get(UPGRADE_STAGE);
         return stage != null ? stage : 1;
+    }
+
+    public static int getKillCount(net.minecraft.world.item.ItemStack stack) {
+        Integer kills = stack.get(KILL_COUNT);
+        return kills != null ? kills : 0;
     }
 
     public static net.minecraft.world.item.ItemStack withStage(net.minecraft.world.item.ItemStack stack, int stage) {
@@ -40,6 +64,12 @@ public class ModDataComponents {
                 List.of(),
                 List.of()
         ));
+        return copy;
+    }
+
+    public static net.minecraft.world.item.ItemStack withKillCount(net.minecraft.world.item.ItemStack stack, int kills) {
+        net.minecraft.world.item.ItemStack copy = stack.copy();
+        copy.set(KILL_COUNT, kills);
         return copy;
     }
 }

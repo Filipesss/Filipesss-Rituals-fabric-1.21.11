@@ -1,0 +1,15 @@
+{
+  "layers": {
+
+    "humanoid": [
+      {
+        "texture": "rituals:rosegold"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "rituals:rosegold"
+      }
+    ]
+  }
+}

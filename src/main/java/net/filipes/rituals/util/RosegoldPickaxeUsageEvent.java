@@ -1,12 +1,15 @@
 package net.filipes.rituals.util;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.filipes.rituals.item.custom.RosegoldPickaxeItem;
 import net.filipes.rituals.item.custom.RosegoldPickaxeItem.MiningMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -15,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -25,10 +29,19 @@ import java.util.Set;
 public class RosegoldPickaxeUsageEvent {
 
     private static final Set<BlockPos> HARVESTED_BLOCKS = new HashSet<>();
-
-    private static final Set<BlockPos> AOE_BLOCKS = new HashSet<>();
+    private static final Set<BlockPos> AOE_BLOCKS       = new HashSet<>();
 
     public static void register() {
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (world.isClientSide()) return InteractionResult.PASS;
+            ItemStack held = player.getItemInHand(hand);
+            if (held.getItem() instanceof BlockItem) {
+                BlockPos placed = hitResult.getBlockPos().relative(hitResult.getDirection());
+                PlayerPlacedBlocksData.get((ServerLevel) world).addPlaced(placed);
+            }
+            return InteractionResult.PASS;
+        });
+
         PlayerBlockBreakEvents.BEFORE.register(RosegoldPickaxeUsageEvent::onBeforeBreak);
         PlayerBlockBreakEvents.AFTER.register(RosegoldPickaxeUsageEvent::onAfterBreak);
     }
@@ -53,13 +66,11 @@ public class RosegoldPickaxeUsageEvent {
             serverPlayer.gameMode.destroyBlock(position);
             HARVESTED_BLOCKS.remove(position);
         }
-
         return true;
     }
 
     private static void onAfterBreak(Level level, Player player, BlockPos pos,
                                      BlockState state, @Nullable BlockEntity blockEntity) {
-
         AOE_BLOCKS.remove(pos);
 
         if (!(level instanceof ServerLevel serverLevel)) return;
@@ -67,11 +78,17 @@ public class RosegoldPickaxeUsageEvent {
         if (!(tool.getItem() instanceof RosegoldPickaxeItem)) return;
         if (!RosegoldPickaxeItem.hasDoubleDrops(tool)) return;
 
+        PlayerPlacedBlocksData placedData = PlayerPlacedBlocksData.get(serverLevel);
+        if (placedData.isPlayerPlaced(pos)) {
+            placedData.removePlaced(pos);
+            return;
+        }
+
         LootParams.Builder params = new LootParams.Builder(serverLevel)
-                .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(pos))
+                .withParameter(LootContextParams.ORIGIN,      Vec3.atCenterOf(pos))
                 .withParameter(LootContextParams.BLOCK_STATE, state)
                 .withParameter(LootContextParams.THIS_ENTITY, player)
-                .withParameter(LootContextParams.TOOL, tool)
+                .withParameter(LootContextParams.TOOL,        tool)
                 .withOptionalParameter(LootContextParams.BLOCK_ENTITY, blockEntity);
 
         List<ItemStack> drops = state.getDrops(params);
