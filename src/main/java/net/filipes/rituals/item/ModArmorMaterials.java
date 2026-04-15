@@ -29,7 +29,7 @@ public class ModArmorMaterials {
             ),
             15,                             // enchantability (matches gold)
             SoundEvents.ARMOR_EQUIP_GOLD,
-            0.0f,                           // toughness
+            3.0f,                           // toughness
             0.0f,                           // knockback resistance
             ModTags.Items.ROSEGOLD_REPAIR,  // TagKey<Item>, same tag as ToolMaterial
             ROSEGOLD_EQUIPMENT_ASSET

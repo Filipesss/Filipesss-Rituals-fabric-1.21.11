@@ -19,6 +19,7 @@ import net.filipes.rituals.client.render.RitualPedestalBlockEntityRenderer;
 import net.filipes.rituals.entity.ModEntities;
 import net.filipes.rituals.entity.client.PulseBlasterBeamModel;
 import net.filipes.rituals.entity.client.PulseBlasterBeamRenderer;
+import net.filipes.rituals.item.ModItems;
 import net.filipes.rituals.item.custom.RosegoldPickaxeItem;
 import net.filipes.rituals.network.ShadowguardInvisiblePacket;
 import net.filipes.rituals.network.TogglePickaxeMiningPacket;
@@ -48,10 +49,6 @@ public class RitualsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
 
-        // 1. We removed the stray 'while (actionOne.consumeClick())' loop from here.
-
-        // 2. Initialize actionOne just like your other keybinds.
-        // I put GLFW_KEY_R as a placeholder, feel free to change it!
         actionOne = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.rituals.action_one",
                 InputConstants.Type.KEYSYM,
@@ -112,6 +109,7 @@ public class RitualsClient implements ClientModInitializer {
                 ShadowguardInvisiblePacket.TYPE,
                 (packet, context) -> ShadowguardHudOverlay.trigger()
         );
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             PulseBlasterCylinderState.tick();
 

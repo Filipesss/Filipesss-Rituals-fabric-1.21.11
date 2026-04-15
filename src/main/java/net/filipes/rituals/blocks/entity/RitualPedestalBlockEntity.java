@@ -42,6 +42,7 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
     private boolean pendingFulfillment = false;
 
     @Nullable private UUID displayEntityUuid = null;
+    @Nullable private UUID rewardDisplayUuid = null;
 
     private final List<UUID>   floatingItemUuids = new ArrayList<>();
     private final List<String> floatingItemIds   = new ArrayList<>();
@@ -104,6 +105,52 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         if (fulfilled) {
             killAllFloatingItems(serverLevel);
             return;
+        }
+        if (pedestalTypeId != null && !fulfilled) {
+            PedestalType type = PedestalTypes.byId(pedestalTypeId);
+            if (type != null) {
+                if (rewardDisplayUuid != null) {
+                    Entity existing = serverLevel.getEntity(rewardDisplayUuid);
+                    if (existing == null || existing.isRemoved()) rewardDisplayUuid = null;
+                }
+                if (rewardDisplayUuid == null) {
+                    ItemStack preview = type.createReward(serverLevel.registryAccess());
+                    Display.ItemDisplay itemDisplay = new Display.ItemDisplay(
+                            EntityType.ITEM_DISPLAY, serverLevel);
+                    itemDisplay.setPos(
+                            worldPosition.getX() + 0.5,
+                            worldPosition.getY() + 1.5,
+                            worldPosition.getZ() + 0.5);
+                    itemDisplay.setNoGravity(true);
+                    itemDisplay.setInvulnerable(true);
+                    itemDisplay.setSilent(true);
+                    itemDisplay.setBillboardConstraints(Display.BillboardConstraints.VERTICAL);
+                    itemDisplay.setItemStack(preview);
+                    itemDisplay.setTransformationInterpolationDuration(10);
+                    serverLevel.addFreshEntity(itemDisplay);
+                    rewardDisplayUuid = itemDisplay.getUUID();
+                } else {
+                    Entity existing = serverLevel.getEntity(rewardDisplayUuid);
+                    if (existing instanceof Display.ItemDisplay itemDisplay && !existing.isRemoved()) {
+                        long time = serverLevel.getGameTime();
+
+                        float baseHeightOffset = 0f; // float distance
+                        float bob = (float)(Math.sin(time * 0.05) * 0.12);
+
+                        com.mojang.math.Transformation transform = new com.mojang.math.Transformation(
+                                new org.joml.Vector3f(0f, baseHeightOffset + bob, 0f),
+                                null,
+                                new org.joml.Vector3f(0.6f, 0.6f, 0.6f),
+                                null
+                        );
+
+                        itemDisplay.setTransformation(transform);
+                        itemDisplay.setTransformationInterpolationDelay(0);
+                    }
+                }
+            }
+        } else {
+            killRewardDisplay(serverLevel);
         }
 
         LinkedHashMap<String, ItemStack> exemplarMap = new LinkedHashMap<>();
@@ -219,6 +266,7 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
                 60, 0.6, 0.6, 0.6, 0.15);
 
         killAllFloatingItems(level);
+        killRewardDisplay(level);
         fulfilled = true;
         super.setChanged();
         updateDisplayText();
@@ -289,7 +337,10 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
     public void setRemoved() {
         super.setRemoved();
         killDisplayEntity();
-        if (level instanceof ServerLevel sl) killAllFloatingItems(sl);
+        if (level instanceof ServerLevel sl) {
+            killAllFloatingItems(sl);
+            killRewardDisplay(sl);
+        }
     }
 
     private void killDisplayEntity() {
@@ -308,6 +359,12 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
         }
         floatingItemUuids.clear();
         floatingItemIds.clear();
+    }
+    private void killRewardDisplay(ServerLevel sl) {
+        if (rewardDisplayUuid == null) return;
+        Entity e = sl.getEntity(rewardDisplayUuid);
+        if (e != null) e.discard();
+        rewardDisplayUuid = null;
     }
 
     private void orbitItemEntity(ServerLevel sl, ItemEntity itemEnt, int index, int total) {
@@ -381,6 +438,8 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
 
         if (displayEntityUuid != null)
             output.putString("DisplayEntityUUID", displayEntityUuid.toString());
+        if (rewardDisplayUuid != null)
+            output.putString("RewardDisplayUUID", rewardDisplayUuid.toString());
 
         if (!floatingItemUuids.isEmpty()) {
             StringBuilder sb = new StringBuilder();
@@ -411,6 +470,11 @@ public class RitualPedestalBlockEntity extends BlockEntity implements Container 
 
         String raw = input.getStringOr("DisplayEntityUUID", "");
         if (!raw.isEmpty()) this.displayEntityUuid = UUID.fromString(raw);
+        String rawReward = input.getStringOr("RewardDisplayUUID", "");
+        if (!rawReward.isEmpty()) {
+            try { this.rewardDisplayUuid = UUID.fromString(rawReward); }
+            catch (IllegalArgumentException ignored) {}
+        }
 
         floatingItemUuids.clear(); floatingItemIds.clear();
         String rawUuids = input.getStringOr("FloatingItemUUIDs", "");

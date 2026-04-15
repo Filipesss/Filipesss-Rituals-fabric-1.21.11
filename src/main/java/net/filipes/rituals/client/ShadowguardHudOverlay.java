@@ -6,12 +6,16 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
 public class ShadowguardHudOverlay {
 
     private static final long DURATION_MS = 3000;
-    private static final long FADE_MS     = 500;
+    private static final long FADE_MS = 500;
+
+    private static final Identifier VIGNETTE_TEXTURE =
+            Identifier.fromNamespaceAndPath("rituals", "textures/misc/shadowguard_vignette.png");
 
     private static long activeUntil = 0;
 
@@ -25,7 +29,7 @@ public class ShadowguardHudOverlay {
 
     public static void register() {
         HudElementRegistry.attachElementAfter(
-                VanillaHudElements.BOSS_BAR,
+                VanillaHudElements.MISC_OVERLAYS,
                 Identifier.fromNamespaceAndPath("rituals", "shadowguard_hud"),
                 new HudElement() {
                     @Override
@@ -47,37 +51,43 @@ public class ShadowguardHudOverlay {
         if (remaining < FADE_MS) {
             alpha = (float) remaining / FADE_MS;
         } else if (DURATION_MS - remaining < FADE_MS) {
-            alpha = (float)(DURATION_MS - remaining) / FADE_MS;
+            alpha = (float) (DURATION_MS - remaining) / FADE_MS;
         } else {
             alpha = 1.0f;
         }
 
-        int screenWidth  = mc.getWindow().getGuiScaledWidth();
-        int screenHeight = mc.getWindow().getGuiScaledHeight();
+        int width = mc.getWindow().getGuiScaledWidth();
+        int height = mc.getWindow().getGuiScaledHeight();
 
-        // Vignette: thin but intense gradients from each edge, mimicking world border aura
-        int depth  = screenHeight / 4;
-        int maxA   = (int)(alpha * 180) & 0xFF;
-        int opaque = (maxA << 24) | 0xAA0000;
-        int transp = 0x00AA0000;
+        int a = (int) (alpha * 85) & 0xFF;
+        int color = (a << 24) | 0xFA0000;
 
-        guiGraphics.fillGradient(0, 0,            screenWidth, depth,                    opaque, transp); // top
-        guiGraphics.fillGradient(0, screenHeight - depth, screenWidth, screenHeight,     transp, opaque); // bottom
-        guiGraphics.fillGradient(0, 0,            depth, screenHeight,                   opaque, transp); // left
-        guiGraphics.fillGradient(screenWidth - depth, 0, screenWidth, screenHeight,      transp, opaque); // right
 
-        // [INVISIBLE] just above the hotbar
-        String label    = "[INVISIBLE]";
-        int textWidth   = mc.font.width(label);
-        int textAlpha   = (int)(alpha * 255) & 0xFF;
+
+        guiGraphics.blit(
+                RenderPipelines.GUI_TEXTURED,
+                VIGNETTE_TEXTURE,
+                0, 0,
+                0.0f, 0.0f,
+                width, height,
+                256, 256,
+                256, 256,
+                color
+        );
+        String label = "[INVISIBLE]";
+        int textWidth = mc.font.width(label);
+
+        int textAlpha = (int) (alpha * 255) & 0xFF;
+        int textColor = (textAlpha << 24) | 0xFA0000;
 
         guiGraphics.text(
                 mc.font,
                 label,
-                (screenWidth - textWidth) / 2,
-                screenHeight - 45,
-                (textAlpha << 24) | 0x9B6DFF,
+                (width - textWidth) / 2,
+                height - 52,
+                textColor,
                 true
         );
     }
+
 }

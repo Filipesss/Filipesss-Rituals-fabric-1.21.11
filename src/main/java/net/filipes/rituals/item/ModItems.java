@@ -12,6 +12,7 @@ import net.minecraft.util.Unit;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.network.chat.Component;
@@ -142,7 +143,7 @@ public class ModItems {
                     1.2f,
                     settings
             ),
-            new Item.Properties().stacksTo(1)
+            new Item.Properties().stacksTo(1).component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
     );
 
 
@@ -179,6 +180,16 @@ public class ModItems {
                     .component(DataComponents.LORE,
                             new ItemLore(List.of(Component.translatable("tooltip.rituals.rosegold_armor")
                                     .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFB6C1)).withItalic(false))))));
+
+    // Inside your ModItems.java
+
+    public static final Item POLARITY_BOW = registerItem("polarity_bow",
+            settings -> new BowItem(settings),
+            new Item.Properties()
+                    .stacksTo(1)
+                    .component(DataComponents.UNBREAKABLE, Unit.INSTANCE)
+            // Add your lore/tooltip component here just like your other items
+    );
 
     private static Item registerItem(String name, Function<Item.Properties, Item> creator, Item.Properties settings) {
         Identifier id = Identifier.fromNamespaceAndPath(Rituals.MOD_ID, name);

@@ -5,9 +5,8 @@
   "mixins": [
     "ExampleMixin",
     "AnvilMenuMixin",
-    "ItemStackMixin"
-
-
+    "ItemStackMixin",
+    "LivingEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

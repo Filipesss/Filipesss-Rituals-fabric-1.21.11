@@ -4,7 +4,6 @@ import net.filipes.rituals.Rituals;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
 
@@ -14,6 +13,18 @@ public class ModStatusEffects {
             BuiltInRegistries.MOB_EFFECT,
             Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "stun"),
             new StunEffect()
+    );
+
+    public static final Holder<MobEffect> SUNBLESSED = Registry.registerForHolder(
+            BuiltInRegistries.MOB_EFFECT,
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "sunblessed"),
+            new SunblessedEffect()
+    );
+
+    public static final Holder<MobEffect> MOONSHINE = Registry.registerForHolder(
+            BuiltInRegistries.MOB_EFFECT,
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "moonshine"),
+            new MoonshineEffect()
     );
 
     public static void registerModStatusEffects() {

@@ -40,7 +40,6 @@ public class ShadowguardItem extends MaceItem implements RitualsTooltipStyle {
 
         System.out.println("postHurtEnemy fired");
 
-        // CRITICAL FIX: Only run this on the server side to prevent desync flickering!
         if (attacker.level().isClientSide()) return;
 
         int stage = ModDataComponents.getStage(stack);
@@ -53,13 +52,10 @@ public class ShadowguardItem extends MaceItem implements RitualsTooltipStyle {
             if (roll < 0.50f) {
                 System.out.println("Triggering invisibility");
 
-                // 1. Apply vanilla effect (hides player model)
                 attacker.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 60, 0, false, false));
 
-                // 2. Track custom true invis (hides armor/tools via your mixin)
                 invisibleUntil.put(attacker.getUUID(), System.currentTimeMillis() + 3000);
 
-                // 3. Send packet to client for HUD overlay
                 if (attacker instanceof ServerPlayer serverPlayer) {
                     System.out.println("Sending packet to: " + serverPlayer.getName().getString());
                     ServerPlayNetworking.send(serverPlayer, new ShadowguardInvisiblePacket());
