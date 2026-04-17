@@ -17,6 +17,7 @@
   "client": [
     "client.TooltipBackgroundRendererMixin",
     "client.LivingEntityRenderStateMixin",
-    "client.LivingEntityRendererMixin"
+    "client.LivingEntityRendererMixin",
+    "client.CameraMixin"
   ]
 }

@@ -1,6 +1,7 @@
 package net.filipes.rituals.item.custom;
 
 import net.filipes.rituals.effect.ModStatusEffects;
+import net.filipes.rituals.entity.custom.ElectricBoltEntity;
 import net.filipes.rituals.sound.ModSounds;
 import net.filipes.rituals.util.RitualsTooltipStyle;
 import net.minecraft.world.entity.LivingEntity;
@@ -13,7 +14,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.network.chat.Component;
-import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Math.sqrt;
@@ -72,36 +72,19 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
     }
 
     private void spawnLightningChain(ServerLevel world, LivingEntity from, LivingEntity to) {
-        double x1 = from.getX(), y1 = from.getY(0.5), z1 = from.getZ();
-        double x2 = to.getX(),   y2 = to.getY(0.5),   z2 = to.getZ();
+        ElectricBoltEntity.spawn(
+                world,
+                from.getEyePosition(),
+                to.getEyePosition(),
+                0.6f,
+                0.14f,
+                0x98E8FF
+        );
 
-        List<double[]> points = new ArrayList<>();
-        points.add(new double[]{x1, y1, z1});
-        points.add(new double[]{x2, y2, z2});
-
-        int subdivisions = 7;
-        for (int s = 0; s < subdivisions; s++) {
-            List<double[]> next = new ArrayList<>();
-            double displacement = 0.9 / sqrt(s + 1); //wideness
-            for (int i = 0; i < points.size() - 1; i++) {
-                double[] a = points.get(i);
-                double[] b = points.get(i + 1);
-                next.add(a);
-                next.add(new double[]{
-                        (a[0] + b[0]) / 2 + (world.getRandom().nextDouble() - 0.5) * displacement,
-                        (a[1] + b[1]) / 2 + (world.getRandom().nextDouble() - 0.5) * displacement,
-                        (a[2] + b[2]) / 2 + (world.getRandom().nextDouble() - 0.5) * displacement
-                });
-            }
-            next.add(points.get(points.size() - 1));
-            points = next;
-        }
-
-        for (int i = 0; i < points.size() - 1; i++) {
-            double[] a = points.get(i);
-            double[] b = points.get(i + 1);
-            drawSegment(world, a[0], a[1], a[2], b[0], b[1], b[2]);
-        }
+        drawSegment(world,
+                from.getX(), from.getY(0.5), from.getZ(),
+                to.getX(), to.getY(0.5), to.getZ()
+        );
     }
 
     private void drawSegment(ServerLevel world, double x1, double y1, double z1,

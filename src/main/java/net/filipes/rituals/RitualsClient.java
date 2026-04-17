@@ -19,8 +19,10 @@ import net.filipes.rituals.client.cooldown.CooldownHudOverlay;
 import net.filipes.rituals.client.cooldown.CooldownManager;
 import net.filipes.rituals.client.render.RitualPedestalBlockEntityRenderer;
 import net.filipes.rituals.entity.ModEntities;
+import net.filipes.rituals.entity.client.ElectricBoltEntityRenderer;
 import net.filipes.rituals.entity.client.PulseBlasterBeamModel;
 import net.filipes.rituals.entity.client.PulseBlasterBeamRenderer;
+import net.filipes.rituals.entity.client.ScreenShakeEntityRenderer;
 import net.filipes.rituals.item.ModItems;
 import net.filipes.rituals.item.custom.RosegoldPickaxeItem;
 import net.filipes.rituals.network.ShadowguardInvisiblePacket;
@@ -86,6 +88,14 @@ public class RitualsClient implements ClientModInitializer {
         EntityRendererRegistry.register(
                 ModEntities.PULSE_BLASTER_BEAM,
                 PulseBlasterBeamRenderer::new
+        );
+        EntityRendererRegistry.register(
+                ModEntities.SCREEN_SHAKE,
+                ScreenShakeEntityRenderer::new
+        );
+        EntityRendererRegistry.register(
+                ModEntities.ELECTRIC_BOLT,
+                ElectricBoltEntityRenderer::new
         );
         ModelLayerRegistry.registerModelLayer(
                 PulseBlasterBeamModel.LAYER,
