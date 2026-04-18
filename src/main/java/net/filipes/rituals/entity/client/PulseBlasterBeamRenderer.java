@@ -19,7 +19,7 @@ public class PulseBlasterBeamRenderer
         extends EntityRenderer<PulseBlasterBeamEntity, PulseBlasterBeamRenderer.BeamRenderState> {
 
     private static final Identifier TEXTURE =
-            Identifier.fromNamespaceAndPath("rituals", "textures/entity/pulse_blaster_beam.png");
+            Identifier.fromNamespaceAndPath("rituals", "textures/entity/pulse_blaster_beam_old.png");
 
     private static final float MODEL_CENTER_Y = 1.266f;
 

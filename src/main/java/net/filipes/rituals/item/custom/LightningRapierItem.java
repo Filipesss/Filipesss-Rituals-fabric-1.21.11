@@ -9,14 +9,12 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ToolMaterial;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.network.chat.Component;
-import java.util.List;
 
-import static java.lang.Math.sqrt;
+import java.util.List;
 
 public class LightningRapierItem extends Item implements RitualsTooltipStyle {
 
@@ -60,7 +58,15 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
 
                 LivingEntity previous = target;
                 for (LivingEntity chained : nearby) {
-                    spawnLightningChain(serverWorld, previous, chained);
+                    ElectricBoltEntity.spawn(
+                            serverWorld,
+                            previous.getEyePosition(),
+                            chained.getEyePosition(),
+                            2.0f,
+                            0.14f,
+                            0x98E8FF
+                    );
+
                     applyStun(chained);
                     chained.hurt(serverWorld.damageSources().lightningBolt(), CHAIN_DAMAGE);
                     previous = chained;
@@ -69,39 +75,6 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
         }
 
         super.hurtEnemy(stack, target, attacker);
-    }
-
-    private void spawnLightningChain(ServerLevel world, LivingEntity from, LivingEntity to) {
-        ElectricBoltEntity.spawn(
-                world,
-                from.getEyePosition(),
-                to.getEyePosition(),
-                0.6f,
-                0.14f,
-                0x98E8FF
-        );
-
-        drawSegment(world,
-                from.getX(), from.getY(0.5), from.getZ(),
-                to.getX(), to.getY(0.5), to.getZ()
-        );
-    }
-
-    private void drawSegment(ServerLevel world, double x1, double y1, double z1,
-                             double x2, double y2, double z2) {
-        double dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
-        double dist = sqrt(dx * dx + dy * dy + dz * dz);
-        int steps = Math.max(1, (int)(dist / 0.15));
-
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            double x = x1 + dx * t;
-            double y = y1 + dy * t;
-            double z = z1 + dz * t;
-
-            world.sendParticles(ParticleTypes.END_ROD, x, y, z, 1, 0, 0, 0, 0.0);
-            world.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 1, 0, 0, 0, 0.0);
-        }
     }
 
     private void applyStun(LivingEntity entity) {
@@ -120,7 +93,6 @@ public class LightningRapierItem extends Item implements RitualsTooltipStyle {
         return Component.translatable(getDescriptionId())
                 .withStyle(s -> s.withColor(getNameColor()).withItalic(false));
     }
-
 
     @Override
     public int getNameColor() {

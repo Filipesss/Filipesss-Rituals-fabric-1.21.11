@@ -26,20 +26,22 @@ public class PulseBlasterBeamModel {
         PartDefinition partdefinition = meshdefinition.getRoot();
 
         PartDefinition bone = partdefinition.addOrReplaceChild("bone", CubeListBuilder.create()
-                        .texOffs(0, 0).addBox(-8.001F, -7.0F, 7.0F, 0.001F, 7.0F, 2.0F, CubeDeformation.NONE)
-                        .texOffs(4, 16).addBox(-8.05F, -7.025F, 7.05F, 0.1F, 7.05F, 1.9F, CubeDeformation.NONE)
-                        .texOffs(0, 14).addBox(-8.125F, -7.05F, 7.15F, 0.25F, 7.1F, 1.7F, CubeDeformation.NONE)
-                        .texOffs(3, 10).mirror().addBox(-8.025F, -7.5F, 7.5F, 0.05F, 8.0F, 1.0F, CubeDeformation.NONE).mirror(false)
-                        .texOffs(4, 12).addBox(-8.075F, -7.5751F, 7.55F, 0.15F, 8.1501F, 0.9F, CubeDeformation.NONE),
-                PartPose.offset(8.0F, 24.0F, -8.0F));
+                        .texOffs(0, 0).addBox(0.0F, -11.0F, -1.0F, 0.0F, 12.0F, 2.0F, CubeDeformation.NONE)
+                        .texOffs(8, 11).addBox(0.0F, -10.0F, 1.0F, 0.0F, 10.0F, 1.0F, CubeDeformation.NONE)
+                        .texOffs(10, 11).addBox(0.0F, -10.0F, -2.0F, 0.0F, 10.0F, 1.0F, CubeDeformation.NONE),
+                PartPose.offset(0.0F, 24.0F, 0.0F));
 
         bone.addOrReplaceChild("cube_r1", CubeListBuilder.create()
-                        .texOffs(12, 8).addBox(-1.075F, -7.575F, 0.55F, 0.15F, 8.15F, 0.9F, CubeDeformation.NONE)
-                        .texOffs(8, 14).addBox(-1.025F, -7.5F, 0.5F, 0.05F, 8.0F, 1.0F, CubeDeformation.NONE)
-                        .texOffs(10, 4).addBox(-1.125F, -7.05F, 0.175F, 0.25F, 7.1F, 1.65F, CubeDeformation.NONE)
-                        .texOffs(8, 0).addBox(-1.05F, -7.025F, 0.075F, 0.1F, 7.05F, 1.85F, CubeDeformation.NONE)
-                        .texOffs(4, 0).addBox(-1.0F, -7.0F, 0.0F, 0.0F, 7.0F, 2.0F, CubeDeformation.NONE),
-                PartPose.offsetAndRotation(-7.0F, 0.0F, 9.0F, 0.0F, -1.5708F, 0.0F));
+                        .texOffs(4, 0).addBox(0.0F, -11.0F, -1.0F, 0.0F, 12.0F, 2.0F, CubeDeformation.NONE),
+                PartPose.offsetAndRotation(0.0F, 0.0F, 0.0F, 0.0F, 1.5708F, 0.0F));
+
+        bone.addOrReplaceChild("cube_r2", CubeListBuilder.create()
+                        .texOffs(10, 0).addBox(0.0F, -10.0F, -1.0F, 0.0F, 10.0F, 1.0F, CubeDeformation.NONE),
+                PartPose.offsetAndRotation(-1.0F, 0.0F, 0.0F, 0.0F, 1.5708F, 0.0F));
+
+        bone.addOrReplaceChild("cube_r3", CubeListBuilder.create()
+                        .texOffs(8, 0).addBox(0.0F, -10.0F, -1.0F, 0.0F, 10.0F, 1.0F, CubeDeformation.NONE),
+                PartPose.offsetAndRotation(2.0F, 0.0F, 0.0F, 0.0F, 1.5708F, 0.0F));
 
         return LayerDefinition.create(meshdefinition, 32, 32);
     }

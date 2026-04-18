@@ -63,7 +63,7 @@ public class ElectricBoltEntity extends Entity {
     }
 
     public ElectricBoltEntity(Level level, Vec3 start, Vec3 end) {
-        this(level, start, end, 1.6f, 0.12f, 0x98E8FF);
+        this(level, start, end, 4.0f, 0.12f, 0x98E8FF);
     }
 
     public ElectricBoltEntity(Level level, Vec3 start, Vec3 end, float speed, float width, int color) {
@@ -75,7 +75,7 @@ public class ElectricBoltEntity extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(ORIGIN, new Vector3f());
         builder.define(DIRECTION, new Vector3f(0.0f, 0.0f, 1.0f));
-        builder.define(SPEED, 1.6f);
+        builder.define(SPEED, 4.0f);
         builder.define(DISTANCE, 0.0f);
         builder.define(WIDTH, 0.12f);
         builder.define(COLOR, 0x98E8FF);
