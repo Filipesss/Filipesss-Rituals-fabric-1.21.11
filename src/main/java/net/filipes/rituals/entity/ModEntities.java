@@ -199,6 +199,34 @@ public class ModEntities {
                             Registries.ENTITY_TYPE,
                             Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "lightning_strike")))
     );
+    public static final EntityType<LightningTrailEntity> LIGHTNING_TRAIL = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "lightning_trail"),
+            EntityType.Builder.<LightningTrailEntity>of(
+                            (type, level) -> new LightningTrailEntity(type, level),
+                            MobCategory.MISC
+                    )
+                    .sized(0.25f, 0.25f)
+                    .clientTrackingRange(64)
+                    .updateInterval(1)
+                    .build(ResourceKey.create(
+                            Registries.ENTITY_TYPE,
+                            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "lightning_trail")))
+    );
+    public static final EntityType<SparkEntity> SPARK = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "spark"),
+            EntityType.Builder.<SparkEntity>of(
+                            (type, level) -> new SparkEntity(type, level),
+                            MobCategory.MISC
+                    )
+                    .sized(0.25f, 0.25f)
+                    .clientTrackingRange(64)
+                    .updateInterval(1)
+                    .build(ResourceKey.create(
+                            Registries.ENTITY_TYPE,
+                            Identifier.fromNamespaceAndPath(Rituals.MOD_ID, "spark")))
+    );
 
 
 

@@ -16,52 +16,35 @@ import net.minecraft.world.phys.AABB;
 
 public class LightningStrikeEntity extends Entity {
 
-    // ── Synced data ───────────────────────────────────────────────────────────
 
     private static final EntityDataAccessor<Float>   STRIKE_HEIGHT = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> DURATION      = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
-    // Outer glow color
+
     private static final EntityDataAccessor<Integer> GLOW_R        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> GLOW_G        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> GLOW_B        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
-    // Thin inner core color
+
     private static final EntityDataAccessor<Integer> CORE_R        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> CORE_G        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> CORE_B        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.INT);
-    // Damage
+
     private static final EntityDataAccessor<Float>   DAMAGE        = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float>   DAMAGE_RADIUS = SynchedEntityData.defineId(LightningStrikeEntity.class, EntityDataSerializers.FLOAT);
 
-    // ── State ─────────────────────────────────────────────────────────────────
 
-    /** Ticks the bolt takes to reach full brightness before dealing damage. */
     public static final int APPEAR_TICKS = 6;
 
-    /** Increases 0 → APPEAR_TICKS on appear, decreases on disappear. Drives alpha. */
     public int appearTimer;
     public int prevAppearTimer;
 
-    /** Set to false to begin the fade-out / discard sequence. */
     public boolean on = true;
 
-    // ── Constructors ──────────────────────────────────────────────────────────
 
     public LightningStrikeEntity(EntityType<? extends LightningStrikeEntity> type, Level level) {
         super(type, level);
         this.noPhysics = true;
     }
 
-    /**
-     * Full convenience constructor.
-     *
-     * @param x / y / z      Impact point (bottom of the bolt, usually ground level).
-     * @param height         How many blocks upward the bolt reaches.
-     * @param duration       Ticks to stay fully visible after appearing.
-     * @param glowR/G/B      Outer glow RGBA (0-255). Default: blue-white lightning.
-     * @param coreR/G/B      Thin inner core color (0-255). Should be bright/white.
-     * @param damage         AoE flat damage applied at the impact tick (0 = none).
-     * @param damageRadius   Sphere radius around the impact point for AoE damage.
-     */
     public LightningStrikeEntity(EntityType<? extends LightningStrikeEntity> type, Level level,
                                  double x, double y, double z,
                                  float height, int duration,
@@ -78,19 +61,16 @@ public class LightningStrikeEntity extends Entity {
         this.setDamageRadius(damageRadius);
     }
 
-    // ── Tick ──────────────────────────────────────────────────────────────────
 
     @Override
     public void tick() {
         super.tick();
 
-        // Save previous state for partial-tick interpolation
         prevAppearTimer = appearTimer;
         xo = getX();
         yo = getY();
         zo = getZ();
 
-        // Advance the appear / disappear animation counter
         if (!on) {
             if (appearTimer > 0) {
                 appearTimer--;
@@ -99,16 +79,13 @@ public class LightningStrikeEntity extends Entity {
                 return;
             }
         } else {
-            // Ramp up until fully bright
             if (appearTimer < APPEAR_TICKS) appearTimer++;
         }
 
-        // Expire after the configured duration
         if (tickCount > APPEAR_TICKS + getDuration()) {
             on = false;
         }
 
-        // Deal AoE damage exactly once — on the first fully-lit tick
         if (!level().isClientSide()
                 && tickCount == APPEAR_TICKS + 1
                 && level() instanceof ServerLevel serverLevel) {
@@ -139,11 +116,10 @@ public class LightningStrikeEntity extends Entity {
         }
     }
 
-    // ── SynchedEntityData ─────────────────────────────────────────────────────
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        // Defaults: a blue-white lightning bolt, 16 blocks tall, 20 tick lifetime
+
         builder.define(STRIKE_HEIGHT,  16f);
         builder.define(DURATION,        20);
         builder.define(GLOW_R,          80);
@@ -156,7 +132,6 @@ public class LightningStrikeEntity extends Entity {
         builder.define(DAMAGE_RADIUS,    3f);
     }
 
-    // ── Accessors ─────────────────────────────────────────────────────────────
 
     public float getStrikeHeight()         { return entityData.get(STRIKE_HEIGHT); }
     public void  setStrikeHeight(float v)  { entityData.set(STRIKE_HEIGHT, v); }
@@ -184,7 +159,6 @@ public class LightningStrikeEntity extends Entity {
     public float getDamageRadius()        { return entityData.get(DAMAGE_RADIUS); }
     public void  setDamageRadius(float v) { entityData.set(DAMAGE_RADIUS, v); }
 
-    // ── Entity boilerplate ────────────────────────────────────────────────────
 
     @Override public boolean      shouldBeSaved()                              { return false; }
     @Override protected void      readAdditionalSaveData(ValueInput in)        {}

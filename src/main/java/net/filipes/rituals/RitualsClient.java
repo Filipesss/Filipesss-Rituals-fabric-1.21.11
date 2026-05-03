@@ -160,6 +160,10 @@ public class RitualsClient implements ClientModInitializer {
                 ModEntities.LIGHTNING_STRIKE,
                 LightningStrikeEntityRenderer::new
         );
+        EntityRendererRegistry.register(ModEntities.LIGHTNING_TRAIL, LightningTrailEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.SPARK, SparkEntityRenderer::new);
+
+
 
 
         ClientPlayNetworking.registerGlobalReceiver(

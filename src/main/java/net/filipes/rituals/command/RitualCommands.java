@@ -92,6 +92,7 @@ public class RitualCommands {
                                     return 1;
                                 })
                         )
+
         );
     }
 }

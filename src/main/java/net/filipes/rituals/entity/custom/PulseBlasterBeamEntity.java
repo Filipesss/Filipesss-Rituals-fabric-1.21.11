@@ -24,6 +24,7 @@ public class PulseBlasterBeamEntity extends Projectile {
     private static final float BEAM_SPEED = 1.5f;
     private static final int   MAX_AGE    = 80;
 
+
     private final Level storedWorld;
 
     public PulseBlasterBeamEntity(
@@ -93,6 +94,16 @@ public class PulseBlasterBeamEntity extends Projectile {
 
         if (blockHit.getType() != HitResult.Type.MISS && !storedWorld.isClientSide()) {
             BlockPos firePos = blockHit.getBlockPos().relative(blockHit.getDirection());
+            ServerLevel serverLevel = (ServerLevel) storedWorld;
+
+            Vec3 outward = new Vec3(
+                    blockHit.getDirection().getStepX(),
+                    blockHit.getDirection().getStepY(),
+                    blockHit.getDirection().getStepZ()
+            );
+            Vec3 sparkOrigin = blockHit.getLocation().add(outward.scale(0.02));
+
+
 
             if (storedWorld.isEmptyBlock(firePos)) {
                 storedWorld.setBlockAndUpdate(
