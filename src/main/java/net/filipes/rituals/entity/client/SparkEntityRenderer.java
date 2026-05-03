@@ -16,17 +16,14 @@ import java.util.List;
 
 public class SparkEntityRenderer extends EntityRenderer<SparkEntity, SparkEntityRenderer.SparkRenderState> {
 
-
     public static class SparkRenderState extends EntityRenderState {
-        float relX, relY, relZ;
         final List<Vec3> trail = new ArrayList<>();
-
-        int   glowR, glowG, glowB;
-        int   coreR, coreG, coreB;
-        float glowWidth, coreWidth;
+        int   r, g, b;
+        float width;
         int   peakAlpha;
+        int   windowOffset;
+        int   windowSize;
     }
-
 
     public SparkEntityRenderer(EntityRendererProvider.Context ctx) { super(ctx); }
 
@@ -39,18 +36,21 @@ public class SparkEntityRenderer extends EntityRenderer<SparkEntity, SparkEntity
         double eX = e.xo + (e.getX() - e.xo) * pt;
         double eY = e.yo + (e.getY() - e.yo) * pt;
         double eZ = e.zo + (e.getZ() - e.zo) * pt;
-        s.relX = (float)(eX - s.x);
-        s.relY = (float)(eY - s.y);
-        s.relZ = (float)(eZ - s.z);
+
         s.trail.clear();
         s.trail.add(new Vec3(eX, eY, eZ));
         s.trail.addAll(e.trailPositions);
 
-        s.glowR = e.trailGlowR; s.glowG = e.trailGlowG; s.glowB = e.trailGlowB;
-        s.coreR = e.trailCoreR; s.coreG = e.trailCoreG; s.coreB = e.trailCoreB;
-        s.glowWidth  = e.trailGlowWidth;
-        s.coreWidth  = e.trailCoreWidth;
+        s.r          = e.trailR;
+        s.g          = e.trailG;
+        s.b          = e.trailB;
+        s.width      = e.trailWidth;
         s.peakAlpha  = e.trailAlpha;
+        s.windowOffset = e.trailWindowOffset;
+        s.windowSize   = e.windowSize;
+        s.trail.clear();
+        s.trail.addAll(e.trailPositions);
+        s.trail.add(new Vec3(eX, eY, eZ));
     }
 
     @Override public boolean affectedByCulling(SparkEntity e) { return false; }
@@ -64,66 +64,62 @@ public class SparkEntityRenderer extends EntityRenderer<SparkEntity, SparkEntity
         List<Vec3> trail = s.trail;
         if (trail.size() < 2) return;
 
-        final int   total     = trail.size();
-        final float glowW     = s.glowWidth;
-        final float coreW     = s.coreWidth;
-        final int   glowR     = s.glowR, glowG = s.glowG, glowB = s.glowB;
-        final int   coreR     = s.coreR, coreG = s.coreG, coreB = s.coreB;
-        final int   peakAlpha = s.peakAlpha;
+        final int    total  = trail.size();
+        int numSeg = trail.size() - 1;
+
+        int winEnd = Math.min(s.windowOffset, numSeg - 1);
+        int winStart = Math.max(0, winEnd - s.windowSize + 1);
+        if (winStart > winEnd) return;
+
+        final int    r    = s.r, g = s.g, b = s.b;
+        final float  w    = s.width;
+        final int    al   = s.peakAlpha;
         final double camX = s.x, camY = s.y, camZ = s.z;
+
+        final float COS30 = (float)(Math.sqrt(3.0) / 2.0);
+        final float SIN30 = 0.5f;
 
         ps.pushPose();
 
-        for (int i = 0; i < total - 1; i++) {
-            Vec3 a = trail.get(i);
-            Vec3 b = trail.get(i + 1);
-            Vec3 ra = new Vec3(a.x - camX, a.y - camY, a.z - camZ);
-            Vec3 rb = new Vec3(b.x - camX, b.y - camY, b.z - camZ);
+        for (int i = winStart; i <= winEnd; i++) {
+            Vec3 a  = trail.get(i);
+            Vec3 b_ = trail.get(i + 1);
+            Vec3 ra = new Vec3(a.x  - camX, a.y  - camY, a.z  - camZ);
+            Vec3 rb = new Vec3(b_.x - camX, b_.y - camY, b_.z - camZ);
 
-            float t      = i / (float)(total - 1);
-            float tNext  = (i + 1) / (float)(total - 1);
-            int   alA    = (int)(peakAlpha * (1f - t));
-            int   alB    = (int)(peakAlpha * (1f - tNext));
-
-            int segAl = (alA + alB) / 2;
-            if (segAl < 4) continue;
-
-            Vec3 dir    = rb.subtract(ra);
+            Vec3 dir = rb.subtract(ra);
             if (dir.lengthSqr() < 1e-8) continue;
             dir = dir.normalize();
 
-            Vec3 helper = (Math.abs(dir.y) > 0.9) ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
-            Vec3 right  = dir.cross(helper).normalize();
-            Vec3 up     = dir.cross(right).normalize();
+            Vec3 helper   = (Math.abs(dir.y) > 0.9) ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+            Vec3 right    = dir.cross(helper).normalize();
+            Vec3 up       = dir.cross(right).normalize();
+
+            Vec3 bisector = right.add(up).normalize();
+            Vec3 perp     = right.subtract(up).normalize();
+            Vec3 wingA    = bisector.scale(COS30).add(perp.scale(SIN30));
+            Vec3 wingB    = bisector.scale(COS30).subtract(perp.scale(SIN30));
 
             final Vec3 pA = ra, pB = rb;
-            final Vec3 pRight = right, pUp = up;
-            final int  gR = glowR, gG = glowG, gB = glowB;
-            final int  cR = coreR, cG = coreG, cB = coreB;
-            final float gW = glowW, cW = coreW;
-            final int   al = segAl;
+            final Vec3 pWingA = wingA, pWingB = wingB;
+            final int  fr = r, fg = g, fb = b, fal = al;
+            final float fw = w;
 
             snc.submitCustomGeometry(ps, RenderTypes.lightning(), (pose, v) -> {
-                crossQuad(pose, v, pA, pB, pRight, gW, gR, gG, gB, al);
-                crossQuad(pose, v, pA, pB, pUp,    gW, gR, gG, gB, al);
-            });
-
-            snc.submitCustomGeometry(ps, RenderTypes.lightning(), (pose, v) -> {
-                crossQuad(pose, v, pA, pB, pRight, cW, cR, cG, cB, al);
-                crossQuad(pose, v, pA, pB, pUp,    cW, cR, cG, cB, al);
+                vQuad(pose, v, pA, pB, pWingA, fw, fr, fg, fb, fal);
+                vQuad(pose, v, pA, pB, pWingB, fw, fr, fg, fb, fal);
             });
         }
 
         ps.popPose();
     }
 
-    private static void crossQuad(PoseStack.Pose pose, VertexConsumer v,
-                                  Vec3 a, Vec3 b, Vec3 axis, float w,
-                                  int r, int g, int bl, int al) {
-        float h   = w * 0.5f;
-        Vec3  off = axis.scale(h);
-        Vec3  a0  = a.add(off), a1 = a.subtract(off);
-        Vec3  b0  = b.add(off), b1 = b.subtract(off);
+    private static void vQuad(PoseStack.Pose pose, VertexConsumer v,
+                              Vec3 a, Vec3 b, Vec3 axis, float w,
+                              int r, int g, int bl, int al) {
+        Vec3 off = axis.scale(w);
+        Vec3 a0  = a,         a1 = a.add(off);
+        Vec3 b0  = b,         b1 = b.add(off);
         bv(pose, v, a0, r, g, bl, al);
         bv(pose, v, a1, r, g, bl, al);
         bv(pose, v, b1, r, g, bl, al);
